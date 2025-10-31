@@ -1,0 +1,20 @@
+{
+  "name": "lunar-birthright-prototype",
+  "version": "1.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 5173",
+    "build": "next build",
+    "start": "next start -p 5173"
+  },
+  "dependencies": {
+    "next": "14.2.14",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "leaflet": "1.9.4",
+    "react-leaflet": "4.2.1",
+    "html2canvas": "1.4.1",
+    "jspdf": "2.5.1",
+    "qrcode": "1.5.3"
+  }
+}
