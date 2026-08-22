@@ -4,7 +4,6 @@ import base64
 import hashlib
 import os
 from pathlib import Path
-import re
 import sys
 import tarfile
 
@@ -67,55 +66,8 @@ def _prepare_runtime() -> None:
         tf.extractall(RUNTIME_DIR)
 
 
-def _safe_error_message(exc: BaseException) -> str:
-    message = str(exc) or repr(exc)
-    # Mask credentials embedded in common URI forms before returning diagnostics.
-    message = re.sub(r"(mongodb(?:\+srv)?://[^:/\s]+:)[^@\s]+@", r"\1<redacted>@", message, flags=re.I)
-    message = re.sub(r"(https?://[^:/\s]+:)[^@\s]+@", r"\1<redacted>@", message, flags=re.I)
-    # Also redact sensitive environment values if a library echoed one verbatim.
-    for key, value in os.environ.items():
-        upper = key.upper()
-        if value and len(value) >= 8 and any(token in upper for token in ("SECRET", "TOKEN", "PASSWORD", "PASS", "KEY", "MONGO_URL")):
-            message = message.replace(value, "<redacted>")
-    return message[:800]
+_prepare_runtime()
+sys.path.insert(0, str(RUNTIME_DIR))
+os.chdir(RUNTIME_DIR)
 
-
-def _diagnostic_app(stage: str, exc: BaseException):
-    # Keep the function alive so /api/health can expose a safe startup diagnostic
-    # instead of Vercel returning only FUNCTION_INVOCATION_FAILED.
-    from fastapi import FastAPI
-    from fastapi.responses import JSONResponse
-
-    diagnostic = FastAPI(title="Lunar Birthright API startup diagnostic")
-    payload = {
-        "status": "error",
-        "stage": stage,
-        "error_type": type(exc).__name__,
-        "message": _safe_error_message(exc),
-        "python": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
-        "environment": {
-            "MONGO_URL": bool(os.getenv("MONGO_URL")),
-            "DB_NAME": bool(os.getenv("DB_NAME")),
-        },
-    }
-
-    @diagnostic.get("/")
-    @diagnostic.get("/health")
-    @diagnostic.get("/api/health")
-    async def startup_health():
-        return JSONResponse(status_code=503, content=payload)
-
-    return diagnostic
-
-
-try:
-    _prepare_runtime()
-except Exception as exc:  # fail safely but diagnostically at the function boundary
-    app = _diagnostic_app("runtime_reconstruction", exc)
-else:
-    sys.path.insert(0, str(RUNTIME_DIR))
-    os.chdir(RUNTIME_DIR)
-    try:
-        from server import app  # type: ignore  # noqa: E402,F401
-    except Exception as exc:  # preserve a live health endpoint without leaking secrets
-        app = _diagnostic_app("server_import", exc)
+from server import app  # noqa: E402,F401
