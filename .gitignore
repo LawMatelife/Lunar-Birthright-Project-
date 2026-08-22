@@ -27,6 +27,15 @@ __pycache__/
 .venv/
 venv/
 
+# Production database exports / backups (may contain personal data)
+dump/
+backups/
+mongo-dump/
+database-dump/
+*.bson
+*.archive
+*.dump
+
 # OS/editor files
 .DS_Store
 Thumbs.db
