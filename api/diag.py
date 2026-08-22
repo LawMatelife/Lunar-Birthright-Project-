@@ -8,6 +8,7 @@ from pathlib import Path
 import re
 import sys
 import tarfile
+import tempfile
 from typing import Any
 
 from fastapi import FastAPI
@@ -37,8 +38,9 @@ EXPECTED_B64_LENGTH = 51796
 EXPECTED_B64_SHA256 = "2ac8d06a6811bec542b9d31b2010d19d6cdfa41eb86ebc4ee05e9bd922c3bcf9"
 EXPECTED_ARCHIVE_LENGTH = 38845
 EXPECTED_ARCHIVE_SHA256 = "325a1fba5c0b28ece000d00cd950ec530b61e29fba53de3a1dbfafd9864a4867"
-RUNTIME_DIR = Path("/tmp/lbp_backend_v4_diag_325a1fba")
-ARCHIVE_PATH = Path("/tmp/lbp_backend_v4_diag.tar.gz")
+TEMP_DIR = Path(tempfile.gettempdir())
+RUNTIME_DIR = TEMP_DIR / "lbp_backend_v4_diag_325a1fba"
+ARCHIVE_PATH = TEMP_DIR / "lbp_backend_v4_diag.tar.gz"
 
 
 def _sha256(data: bytes) -> str:
