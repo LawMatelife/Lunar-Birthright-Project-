@@ -1,0 +1,52 @@
+{
+  "source_file": "moon-registry-1-test_database_dump_20260815_092957.zip",
+  "zip_size_bytes": 16795,
+  "zip_sha256": "a6555c7780eef150d8897c158f46a5899f09dfb0b321db754ed59620b4ef0eb2",
+  "file_sha256": {
+    "certificates.json": "a19f2f1deaf77823bf6056dfb9eae26dc9309b41a85205a3ec58a39a0bfd89cd",
+    "payment_transactions.json": "39c60c047850a0fcd93a6b63e106d1c03e75761f47462cc5277657bf718be659",
+    "plots.json": "9137acb96ff7cfe0940b8c4a7d5c06445f27ec695caef4aedbf01e7a046d269e",
+    "users.json": "b9ff72ab30b9a9a5d03d727cdf6443a456b4fbf643840ff44e2b0c5f354e1e2f"
+  },
+  "counts": {
+    "users": 44,
+    "plots": 44,
+    "certificates": 9,
+    "payments": 9
+  },
+  "critical_integrity": {
+    "duplicate_user_ids": false,
+    "duplicate_plot_ids": false,
+    "duplicate_certificate_ids": false,
+    "duplicate_payment_ids": false,
+    "duplicate_emails": false,
+    "duplicate_plot_coordinates": false,
+    "relationship_issue_counts": {}
+  },
+  "legacy_observations": {
+    "user_plot_lunar_sector_mismatches": 37,
+    "non_iso_birth_dates": 1,
+    "certificate_payment_status_vocabulary_mismatches": 8,
+    "payment_currencies": {
+      "usd": 9
+    },
+    "payment_amounts": {
+      "12.0": 6,
+      "29.99": 3
+    },
+    "payment_statuses": {
+      "initiated": 8,
+      "paid": 1
+    },
+    "certificate_payment_statuses": {
+      "pending": 8,
+      "paid": 1
+    },
+    "nft_minted_true": 1
+  },
+  "notes": [
+    "This manifest contains counts and hashes only; no names, emails, birth dates, passwords or record identifiers are included.",
+    "This 15 August snapshot is a migration baseline, not the final pre-cutover source of truth. A fresh read-only export must be taken and audited immediately before final restore/cutover.",
+    "Legacy observations are preserved intentionally. Exact source restore comes before any controlled V4 normalization."
+  ]
+}

@@ -35,6 +35,12 @@ database-dump/
 *.bson
 *.archive
 *.dump
+*database_dump*.zip
+*database-dump*.zip
+
+# Locally generated PII-free audit/reconciliation outputs
+export-audit*.json
+atlas-counts*.json
 
 # OS/editor files
 .DS_Store
