@@ -8,7 +8,24 @@ import sys
 import tarfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PARTS = [f"p{i:02d}.txt" for i in range(7)]
+PARTS = [
+    "p00.txt",
+    "p01a.txt",
+    "p01b.txt",
+    "p01c.txt",
+    "p01d0.txt",
+    "p01d1.txt",
+    "p01d2.txt",
+    "p01d3.txt",
+    "p02.txt",
+    "p03a.txt",
+    "p03b.txt",
+    "p03c.txt",
+    "p03d.txt",
+    "p04.txt",
+    "p05.txt",
+    "p06.txt",
+]
 EXPECTED_B64_LENGTH = 51796
 EXPECTED_B64_SHA256 = "2ac8d06a6811bec542b9d31b2010d19d6cdfa41eb86ebc4ee05e9bd922c3bcf9"
 EXPECTED_ARCHIVE_LENGTH = 38845
