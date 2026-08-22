@@ -46,7 +46,8 @@ jobs:
             scripts/audit_export.py \
             scripts/restore_export_to_atlas.py \
             scripts/reconcile_atlas.py \
-            scripts/migrate_v4_legacy.py
+            scripts/migrate_v4_legacy.py \
+            tests/test_v4_logic.py
           python - <<'PY'
           import motor, pymongo, fastapi
           print("motor", motor.version)
@@ -55,13 +56,21 @@ jobs:
           assert tuple(map(int, motor.version.split('.')[:2])) >= (3, 6)
           PY
 
+      - name: Run deterministic V4 logic tests
+        run: python -m unittest discover -s tests -v
+
       - name: Build exact V4 frontend candidate
         env:
           CI: "true"
         run: npm run build
 
-      - name: Verify production build output
+      - name: Verify production build and certificate contract
         run: |
           test -f frontend/build/index.html
           test -s frontend/build/index.html
-          echo "V4 CI build verified"
+          test -s frontend/build/founding-certificate.svg
+          grep -q "LUNAR BIRTHRIGHT" frontend/build/founding-certificate.svg
+          grep -q "BIRTH DATE" frontend/build/founding-certificate.svg
+          grep -q "SYMBOLIC PLOT COORDINATES" frontend/build/founding-certificate.svg
+          grep -q "not legal title" frontend/build/founding-certificate.svg
+          echo "V4 CI build and certificate contract verified"
