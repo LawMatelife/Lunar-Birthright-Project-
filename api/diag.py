@@ -98,10 +98,10 @@ def _reconstruct_backend() -> dict[str, Any]:
 
 
 def _mongo_ping() -> dict[str, Any]:
-    mongo_url = os.getenv("MONGO_URL")
-    db_name = os.getenv("DB_NAME")
+    mongo_url = (os.getenv("MONGO_URL") or "").strip()
+    db_name = (os.getenv("DB_NAME") or "").strip()
     if not mongo_url:
-        return {"ok": False, "reason": "MONGO_URL_missing", "db_name_present": bool(db_name)}
+        return {"ok": False, "reason": "MONGO_URL_missing_or_empty", "db_name_present": bool(db_name)}
     try:
         from pymongo import MongoClient
 
@@ -112,7 +112,10 @@ def _mongo_ping() -> dict[str, Any]:
             socketTimeoutMS=5000,
             appname="lunar-birthright-vercel-diagnostic",
         )
-        client.admin.command("ping")
+        try:
+            client.admin.command("ping")
+        finally:
+            client.close()
         return {"ok": True, "db_name_present": bool(db_name)}
     except Exception as exc:
         return {"ok": False, "db_name_present": bool(db_name), "error": _safe_error(exc)}
@@ -138,6 +141,17 @@ def _server_import() -> dict[str, Any]:
         return {"ok": False, "error": _safe_error(exc)}
 
 
+def _mongo_related_variable_names() -> list[str]:
+    # Names only — never values. This catches a typo/alias such as MONGODB_URI
+    # without exposing any credential material.
+    names = []
+    for key in os.environ:
+        upper = key.upper()
+        if "MONGO" in upper or upper in {"DB_NAME", "DATABASE_URL"}:
+            names.append(key)
+    return sorted(names)
+
+
 @app.get("/")
 @app.get("/api/diag")
 async def diagnostic() -> dict[str, Any]:
@@ -150,12 +164,19 @@ async def diagnostic() -> dict[str, Any]:
             "pymongo": _package_version("pymongo"),
             "pydantic": _package_version("pydantic"),
         },
+        "deployment": {
+            "vercel_env": os.getenv("VERCEL_ENV"),
+            "vercel_url": os.getenv("VERCEL_URL"),
+            "git_commit_ref": os.getenv("VERCEL_GIT_COMMIT_REF"),
+            "git_commit_sha": os.getenv("VERCEL_GIT_COMMIT_SHA"),
+        },
         "environment": {
-            "MONGO_URL": bool(os.getenv("MONGO_URL")),
-            "DB_NAME": bool(os.getenv("DB_NAME")),
-            "STRIPE_SECRET_KEY": bool(os.getenv("STRIPE_SECRET_KEY")),
-            "STRIPE_WEBHOOK_SECRET": bool(os.getenv("STRIPE_WEBHOOK_SECRET")),
-            "CROSSMINT_API_KEY": bool(os.getenv("CROSSMINT_API_KEY")),
+            "MONGO_URL": bool((os.getenv("MONGO_URL") or "").strip()),
+            "DB_NAME": bool((os.getenv("DB_NAME") or "").strip()),
+            "STRIPE_SECRET_KEY": bool((os.getenv("STRIPE_SECRET_KEY") or "").strip()),
+            "STRIPE_WEBHOOK_SECRET": bool((os.getenv("STRIPE_WEBHOOK_SECRET") or "").strip()),
+            "CROSSMINT_API_KEY": bool((os.getenv("CROSSMINT_API_KEY") or "").strip()),
+            "mongo_related_variable_names": _mongo_related_variable_names(),
         },
         "mongo": _mongo_ping(),
         "server_import": _server_import(),
