@@ -45,34 +45,6 @@ def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def _first_env(*names: str) -> str | None:
-    for name in names:
-        value = os.getenv(name)
-        if value and value.strip():
-            return value.strip()
-    return None
-
-
-def _normalise_environment() -> dict[str, bool]:
-    aliases = {
-        "MONGO_URL": bool(os.getenv("MONGO_URL")),
-        "MONGODB_URI": bool(os.getenv("MONGODB_URI")),
-        "MONGO_URI": bool(os.getenv("MONGO_URI")),
-        "DATABASE_URL": bool(os.getenv("DATABASE_URL")),
-        "DB_NAME": bool(os.getenv("DB_NAME")),
-        "MONGO_DB_NAME": bool(os.getenv("MONGO_DB_NAME")),
-        "MONGODB_DB": bool(os.getenv("MONGODB_DB")),
-        "DATABASE_NAME": bool(os.getenv("DATABASE_NAME")),
-    }
-    mongo_url = _first_env("MONGO_URL", "MONGODB_URI", "MONGO_URI", "DATABASE_URL")
-    db_name = _first_env("DB_NAME", "MONGO_DB_NAME", "MONGODB_DB", "DATABASE_NAME")
-    if mongo_url:
-        os.environ["MONGO_URL"] = mongo_url
-    if db_name:
-        os.environ["DB_NAME"] = db_name
-    return aliases
-
-
 def _safe_error(exc: BaseException) -> dict[str, str]:
     message = str(exc) or repr(exc)
     message = re.sub(r"(mongodb(?:\+srv)?://[^:/\s]+:)[^@\s]+@", r"\1<redacted>@", message, flags=re.I)
@@ -94,14 +66,20 @@ def _package_version(name: str) -> str | None:
 def _reconstruct_backend() -> dict[str, Any]:
     encoded = "".join((ROOT / "backend_bundle" / part).read_text(encoding="utf-8") for part in PARTS)
     encoded_bytes = encoded.encode("ascii")
-    result: dict[str, Any] = {"base64_length": len(encoded), "base64_sha256": _sha256(encoded_bytes)}
+    result: dict[str, Any] = {
+        "base64_length": len(encoded),
+        "base64_sha256": _sha256(encoded_bytes),
+    }
     if len(encoded) != EXPECTED_B64_LENGTH or result["base64_sha256"] != EXPECTED_B64_SHA256:
         result["ok"] = False
         result["reason"] = "bundle_text_integrity_failed"
         return result
 
     archive = base64.b64decode(encoded_bytes, validate=True)
-    result.update({"archive_length": len(archive), "archive_sha256": _sha256(archive)})
+    result.update({
+        "archive_length": len(archive),
+        "archive_sha256": _sha256(archive),
+    })
     if len(archive) != EXPECTED_ARCHIVE_LENGTH or result["archive_sha256"] != EXPECTED_ARCHIVE_SHA256:
         result["ok"] = False
         result["reason"] = "archive_integrity_failed"
@@ -141,8 +119,6 @@ def _mongo_ping() -> dict[str, Any]:
 
 
 def _server_import() -> dict[str, Any]:
-    if not os.getenv("MONGO_URL"):
-        return {"ok": False, "reason": "MONGO_URL_missing"}
     try:
         reconstruction = _reconstruct_backend()
         if not reconstruction.get("ok"):
@@ -165,7 +141,6 @@ def _server_import() -> dict[str, Any]:
 @app.get("/")
 @app.get("/api/diag")
 async def diagnostic() -> dict[str, Any]:
-    aliases = _normalise_environment()
     return {
         "status": "diagnostic",
         "python": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
@@ -182,7 +157,6 @@ async def diagnostic() -> dict[str, Any]:
             "STRIPE_WEBHOOK_SECRET": bool(os.getenv("STRIPE_WEBHOOK_SECRET")),
             "CROSSMINT_API_KEY": bool(os.getenv("CROSSMINT_API_KEY")),
         },
-        "mongo_aliases_present": aliases,
         "mongo": _mongo_ping(),
         "server_import": _server_import(),
     }
