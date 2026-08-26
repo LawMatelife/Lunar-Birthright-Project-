@@ -10,29 +10,31 @@ if (!fs.existsSync(indexPath)) {
 
 let html = fs.readFileSync(indexPath, 'utf8');
 
-const marker = 'LBP_AUTH_PRIVACY_PATCH_V2';
+const marker = 'LBP_AUTH_PRIVACY_PATCH_V3';
 if (html.includes(marker)) {
   console.log('LBP_AUTH_PRIVACY_PATCH_ALREADY_PRESENT');
   process.exit(0);
 }
 
 const script = String.raw`<script id="lbp-auth-privacy-patch">
-/* LBP_AUTH_PRIVACY_PATCH_V2
- * Privacy migration for legacy/demo browser state.
- * - New visitors remain anonymous unless they authenticate themselves.
- * - Removes legacy Daniel founder/demo identity values from auth and claim-form browser state.
- * - Clears any legacy Daniel founder/demo name that appears pre-filled in a public claim field.
- * - Leaves the public founding certificate/sample founder references untouched.
- * - Adds a fallback Log out control only when an authenticated-looking browser state exists
- *   and the app itself does not already expose a logout/sign-out control.
+/* LBP_AUTH_PRIVACY_PATCH_V3
+ * Free-claim registration privacy guard.
+ * - New/public visitors see blank personal-information fields in Claim Your Free 1/4 Acre.
+ * - Removes legacy Daniel founder/demo identity values from claim/auth browser state.
+ * - Neutralises hard-coded/initial React values and late browser autofill before user interaction.
+ * - Never wipes a field after the visitor has personally typed/selected into it.
+ * - Leaves the Original Founding Citizen sample certificate and founder references untouched.
  */
 (function () {
   'use strict';
-  var MIGRATION_KEY = 'lbp_auth_privacy_migration_v2';
+
+  var MIGRATION_KEY = 'lbp_auth_privacy_migration_v3';
   var AUTH_KEY = /(auth|user|login|session|account|profile|identity)/i;
-  var IDENTITY_KEY = /(auth|user|login|session|account|profile|identity|claim|form|name|citizen|draft)/i;
-  var DANIEL = /^\s*daniel\s+(allan\s+)?(?:heslip|heslop|hyslop|heslet)\s*$/i;
+  var CLAIM_STATE_KEY = /(claim|register|registration|form|draft|citizen|profile|identity)/i;
   var DANIEL_ANYWHERE = /daniel\s+(allan\s+)?(?:heslip|heslop|hyslop|heslet)/i;
+  var CLAIM_TEXT = /(claim\s+(?:your\s+)?(?:free\s+)?(?:¼|1\s*\/\s*4|quarter)[-\s]*acre|claim\s+your\s+free|free\s+(?:¼|1\s*\/\s*4|quarter)[-\s]*acre)/i;
+  var touched = new WeakSet();
+  var initialGuardUntil = Date.now() + 5000;
 
   function safeEntries(storage) {
     var out = [];
@@ -46,11 +48,11 @@ const script = String.raw`<script id="lbp-auth-privacy-patch">
     return out;
   }
 
-  function clearLegacyDanielState(storage) {
+  function clearLegacyDemoState(storage) {
     safeEntries(storage).forEach(function (pair) {
       var key = pair[0];
       var value = pair[1];
-      if (IDENTITY_KEY.test(key) && DANIEL_ANYWHERE.test(value)) {
+      if ((AUTH_KEY.test(key) || CLAIM_STATE_KEY.test(key)) && DANIEL_ANYWHERE.test(value)) {
         try { storage.removeItem(key); } catch (_) {}
       }
     });
@@ -58,12 +60,12 @@ const script = String.raw`<script id="lbp-auth-privacy-patch">
 
   try {
     if (localStorage.getItem(MIGRATION_KEY) !== 'done') {
-      clearLegacyDanielState(localStorage);
-      clearLegacyDanielState(sessionStorage);
+      clearLegacyDemoState(localStorage);
+      clearLegacyDemoState(sessionStorage);
       localStorage.setItem(MIGRATION_KEY, 'done');
     }
   } catch (_) {
-    clearLegacyDanielState(sessionStorage);
+    try { clearLegacyDemoState(sessionStorage); } catch (_) {}
   }
 
   function hasAuthState() {
@@ -87,7 +89,10 @@ const script = String.raw`<script id="lbp-auth-privacy-patch">
   }
 
   function clearAuthLikeState() {
-    [localStorage, sessionStorage].forEach(function (storage) {
+    var stores = [];
+    try { stores.push(localStorage); } catch (_) {}
+    try { stores.push(sessionStorage); } catch (_) {}
+    stores.forEach(function (storage) {
       safeEntries(storage).forEach(function (pair) {
         if (AUTH_KEY.test(pair[0])) {
           try { storage.removeItem(pair[0]); } catch (_) {}
@@ -96,26 +101,122 @@ const script = String.raw`<script id="lbp-auth-privacy-patch">
     });
   }
 
-  function clearLegacyPrefill() {
-    var fields = document.querySelectorAll('input, textarea');
+  function elementText(node) {
+    try { return (node && node.textContent ? node.textContent : '').replace(/\s+/g, ' ').trim(); }
+    catch (_) { return ''; }
+  }
+
+  function claimContainerFor(field) {
+    var node = field;
+    var best = null;
+    for (var depth = 0; node && depth < 8; depth++, node = node.parentElement) {
+      if (node.tagName === 'FORM') best = node;
+      if (CLAIM_TEXT.test(elementText(node))) return node;
+    }
+    if (best && CLAIM_TEXT.test(elementText(best))) return best;
+    return null;
+  }
+
+  function isEditableClaimField(field) {
+    if (!field || !field.tagName || touched.has(field)) return false;
+    if (!claimContainerFor(field)) return false;
+    var tag = field.tagName.toUpperCase();
+    if (tag === 'TEXTAREA' || tag === 'SELECT') return true;
+    if (tag !== 'INPUT') return false;
+    var type = (field.getAttribute('type') || 'text').toLowerCase();
+    return !/^(hidden|submit|button|reset|image|file)$/i.test(type);
+  }
+
+  function setNativeValue(field, value) {
+    try {
+      var proto = field.tagName === 'TEXTAREA'
+        ? HTMLTextAreaElement.prototype
+        : field.tagName === 'SELECT'
+          ? HTMLSelectElement.prototype
+          : HTMLInputElement.prototype;
+      var descriptor = Object.getOwnPropertyDescriptor(proto, 'value');
+      if (descriptor && descriptor.set) descriptor.set.call(field, value);
+      else field.value = value;
+    } catch (_) {
+      try { field.value = value; } catch (_) {}
+    }
+  }
+
+  function blankField(field) {
+    if (!isEditableClaimField(field)) return;
+
+    var tag = field.tagName.toUpperCase();
+    var type = (field.getAttribute('type') || '').toLowerCase();
+
+    try {
+      field.setAttribute('autocomplete', 'off');
+      field.setAttribute('autocapitalize', field.getAttribute('autocapitalize') || 'none');
+    } catch (_) {}
+
+    if (tag === 'INPUT' && (type === 'checkbox' || type === 'radio')) {
+      if (field.checked) {
+        try { field.checked = false; } catch (_) {}
+        try { field.dispatchEvent(new Event('change', { bubbles: true })); } catch (_) {}
+      }
+      return;
+    }
+
+    var current = '';
+    try { current = String(field.value == null ? '' : field.value); } catch (_) {}
+    var hasValueAttribute = false;
+    try { hasValueAttribute = field.hasAttribute('value') && field.getAttribute('value') !== ''; } catch (_) {}
+
+    if (current !== '' || hasValueAttribute) {
+      setNativeValue(field, '');
+      try { field.removeAttribute('value'); } catch (_) {}
+      if (tag === 'SELECT') {
+        try { field.selectedIndex = -1; } catch (_) {}
+      }
+      try { field.dispatchEvent(new Event('input', { bubbles: true })); } catch (_) {}
+      try { field.dispatchEvent(new Event('change', { bubbles: true })); } catch (_) {}
+    }
+  }
+
+  function blankUntouchedClaimFields() {
+    if (Date.now() > initialGuardUntil) return;
+    var fields = document.querySelectorAll('input, textarea, select');
+    for (var i = 0; i < fields.length; i++) blankField(fields[i]);
+  }
+
+  function markTouched(event) {
+    if (!event || !event.isTrusted) return;
+    var field = event.target;
+    if (!field || !field.tagName) return;
+    if (/^(INPUT|TEXTAREA|SELECT)$/.test(field.tagName.toUpperCase()) && claimContainerFor(field)) {
+      touched.add(field);
+    }
+  }
+
+  document.addEventListener('beforeinput', markTouched, true);
+  document.addEventListener('input', markTouched, true);
+  document.addEventListener('change', markTouched, true);
+  document.addEventListener('keydown', markTouched, true);
+  document.addEventListener('pointerdown', function (event) {
+    var field = event && event.target;
+    if (field && field.tagName && /^(SELECT|INPUT)$/.test(field.tagName.toUpperCase()) && claimContainerFor(field)) {
+      if ((field.getAttribute('type') || '').toLowerCase() === 'checkbox' ||
+          (field.getAttribute('type') || '').toLowerCase() === 'radio' ||
+          field.tagName.toUpperCase() === 'SELECT') {
+        touched.add(field);
+      }
+    }
+  }, true);
+
+  function hardenClaimAutocomplete() {
+    var fields = document.querySelectorAll('input, textarea, select');
     for (var i = 0; i < fields.length; i++) {
       var field = fields[i];
-      var type = (field.getAttribute('type') || 'text').toLowerCase();
-      if (type === 'hidden' || type === 'submit' || type === 'button' || type === 'checkbox' || type === 'radio') continue;
-      var value = (field.value || '').trim();
-      if (!DANIEL.test(value)) continue;
-      try {
-        var nativeSetter = Object.getOwnPropertyDescriptor(
-          field.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype,
-          'value'
-        );
-        if (nativeSetter && nativeSetter.set) nativeSetter.set.call(field, '');
-        else field.value = '';
-        field.removeAttribute('value');
-        field.dispatchEvent(new Event('input', { bubbles: true }));
-        field.dispatchEvent(new Event('change', { bubbles: true }));
-      } catch (_) {
-        try { field.value = ''; } catch (_) {}
+      if (!claimContainerFor(field)) continue;
+      try { field.setAttribute('autocomplete', 'off'); } catch (_) {}
+      var form = null;
+      try { form = field.closest('form'); } catch (_) {}
+      if (form) {
+        try { form.setAttribute('autocomplete', 'off'); } catch (_) {}
       }
     }
   }
@@ -144,28 +245,39 @@ const script = String.raw`<script id="lbp-auth-privacy-patch">
   }
 
   function runPrivacyGuards() {
-    clearLegacyPrefill();
+    hardenClaimAutocomplete();
+    blankUntouchedClaimFields();
     ensureFallbackLogout();
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', runPrivacyGuards, { once: true });
-  } else {
+  function runInitialPasses() {
     runPrivacyGuards();
+    [50, 150, 350, 750, 1500, 3000, 4800].forEach(function (delay) {
+      setTimeout(runPrivacyGuards, delay);
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', runInitialPasses, { once: true });
+  } else {
+    runInitialPasses();
   }
 
   var queued = false;
   var observer = new MutationObserver(function () {
-    if (queued) return;
+    if (queued || Date.now() > initialGuardUntil) return;
     queued = true;
     setTimeout(function () {
       queued = false;
       runPrivacyGuards();
     }, 0);
   });
-  document.addEventListener('DOMContentLoaded', function () {
-    if (document.body) observer.observe(document.body, { childList: true, subtree: true });
-  }, { once: true });
+
+  function startObserver() {
+    if (document.body) observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['value', 'autocomplete'] });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startObserver, { once: true });
+  else startObserver();
 })();
 </script>`;
 
