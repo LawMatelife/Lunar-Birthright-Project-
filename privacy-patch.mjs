@@ -10,25 +10,29 @@ if (!fs.existsSync(indexPath)) {
 
 let html = fs.readFileSync(indexPath, 'utf8');
 
-const marker = 'LBP_AUTH_PRIVACY_PATCH_V1';
+const marker = 'LBP_AUTH_PRIVACY_PATCH_V2';
 if (html.includes(marker)) {
   console.log('LBP_AUTH_PRIVACY_PATCH_ALREADY_PRESENT');
   process.exit(0);
 }
 
 const script = String.raw`<script id="lbp-auth-privacy-patch">
-/* LBP_AUTH_PRIVACY_PATCH_V1
+/* LBP_AUTH_PRIVACY_PATCH_V2
  * Privacy migration for legacy/demo browser state.
  * - New visitors remain anonymous unless they authenticate themselves.
- * - Removes only legacy Daniel Heslip auth/session records once per browser.
+ * - Removes legacy Daniel founder/demo identity values from auth and claim-form browser state.
+ * - Clears any legacy Daniel founder/demo name that appears pre-filled in a public claim field.
+ * - Leaves the public founding certificate/sample founder references untouched.
  * - Adds a fallback Log out control only when an authenticated-looking browser state exists
  *   and the app itself does not already expose a logout/sign-out control.
  */
 (function () {
   'use strict';
-  var MIGRATION_KEY = 'lbp_auth_privacy_migration_v1';
+  var MIGRATION_KEY = 'lbp_auth_privacy_migration_v2';
   var AUTH_KEY = /(auth|user|login|session|account|profile|identity)/i;
-  var DANIEL = /daniel\s+(allan\s+)?heslip/i;
+  var IDENTITY_KEY = /(auth|user|login|session|account|profile|identity|claim|form|name|citizen|draft)/i;
+  var DANIEL = /^\s*daniel\s+(allan\s+)?(?:heslip|heslop|hyslop|heslet)\s*$/i;
+  var DANIEL_ANYWHERE = /daniel\s+(allan\s+)?(?:heslip|heslop|hyslop|heslet)/i;
 
   function safeEntries(storage) {
     var out = [];
@@ -42,11 +46,11 @@ const script = String.raw`<script id="lbp-auth-privacy-patch">
     return out;
   }
 
-  function clearLegacyDanielAuth(storage) {
+  function clearLegacyDanielState(storage) {
     safeEntries(storage).forEach(function (pair) {
       var key = pair[0];
       var value = pair[1];
-      if (AUTH_KEY.test(key) && DANIEL.test(value)) {
+      if (IDENTITY_KEY.test(key) && DANIEL_ANYWHERE.test(value)) {
         try { storage.removeItem(key); } catch (_) {}
       }
     });
@@ -54,12 +58,12 @@ const script = String.raw`<script id="lbp-auth-privacy-patch">
 
   try {
     if (localStorage.getItem(MIGRATION_KEY) !== 'done') {
-      clearLegacyDanielAuth(localStorage);
-      clearLegacyDanielAuth(sessionStorage);
+      clearLegacyDanielState(localStorage);
+      clearLegacyDanielState(sessionStorage);
       localStorage.setItem(MIGRATION_KEY, 'done');
     }
   } catch (_) {
-    clearLegacyDanielAuth(sessionStorage);
+    clearLegacyDanielState(sessionStorage);
   }
 
   function hasAuthState() {
@@ -92,6 +96,30 @@ const script = String.raw`<script id="lbp-auth-privacy-patch">
     });
   }
 
+  function clearLegacyPrefill() {
+    var fields = document.querySelectorAll('input, textarea');
+    for (var i = 0; i < fields.length; i++) {
+      var field = fields[i];
+      var type = (field.getAttribute('type') || 'text').toLowerCase();
+      if (type === 'hidden' || type === 'submit' || type === 'button' || type === 'checkbox' || type === 'radio') continue;
+      var value = (field.value || '').trim();
+      if (!DANIEL.test(value)) continue;
+      try {
+        var nativeSetter = Object.getOwnPropertyDescriptor(
+          field.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype,
+          'value'
+        );
+        if (nativeSetter && nativeSetter.set) nativeSetter.set.call(field, '');
+        else field.value = '';
+        field.removeAttribute('value');
+        field.dispatchEvent(new Event('input', { bubbles: true }));
+        field.dispatchEvent(new Event('change', { bubbles: true }));
+      } catch (_) {
+        try { field.value = ''; } catch (_) {}
+      }
+    }
+  }
+
   function ensureFallbackLogout() {
     if (!document.body || !hasAuthState() || hasVisibleLogout() || document.getElementById('lbp-fallback-logout')) return;
     var button = document.createElement('button');
@@ -115,13 +143,26 @@ const script = String.raw`<script id="lbp-auth-privacy-patch">
     document.body.appendChild(button);
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', ensureFallbackLogout, { once: true });
-  } else {
+  function runPrivacyGuards() {
+    clearLegacyPrefill();
     ensureFallbackLogout();
   }
 
-  var observer = new MutationObserver(function () { ensureFallbackLogout(); });
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', runPrivacyGuards, { once: true });
+  } else {
+    runPrivacyGuards();
+  }
+
+  var queued = false;
+  var observer = new MutationObserver(function () {
+    if (queued) return;
+    queued = true;
+    setTimeout(function () {
+      queued = false;
+      runPrivacyGuards();
+    }, 0);
+  });
   document.addEventListener('DOMContentLoaded', function () {
     if (document.body) observer.observe(document.body, { childList: true, subtree: true });
   }, { once: true });
