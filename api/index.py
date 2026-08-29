@@ -7,6 +7,7 @@ from pathlib import Path
 import sys
 import tarfile
 import tempfile
+from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
 PARTS = [
@@ -34,6 +35,20 @@ EXPECTED_ARCHIVE_SHA256 = "325a1fba5c0b28ece000d00cd950ec530b61e29fba53de3a1dbfa
 TEMP_DIR = Path(tempfile.gettempdir())
 RUNTIME_DIR = TEMP_DIR / "lbp_backend_v4_325a1fba"
 ARCHIVE_PATH = TEMP_DIR / "lbp_backend_v4.tar.gz"
+
+
+def _normalise_database_environment() -> None:
+    """Accept the Vercel DATABASE_URL alias without changing stored secrets."""
+    mongo_url = (os.getenv("MONGO_URL") or "").strip()
+    database_url = (os.getenv("DATABASE_URL") or "").strip()
+    if not mongo_url and database_url.startswith(("mongodb://", "mongodb+srv://")):
+        os.environ["MONGO_URL"] = database_url
+        mongo_url = database_url
+
+    if not (os.getenv("DB_NAME") or "").strip() and mongo_url:
+        parsed = urlparse(mongo_url)
+        path_name = (parsed.path or "").strip("/").split("/", 1)[0]
+        os.environ["DB_NAME"] = path_name or "lunar_birthright"
 
 
 def _sha256(data: bytes) -> str:
@@ -68,6 +83,7 @@ def _prepare_runtime() -> None:
         tf.extractall(RUNTIME_DIR)
 
 
+_normalise_database_environment()
 _prepare_runtime()
 sys.path.insert(0, str(RUNTIME_DIR))
 os.chdir(RUNTIME_DIR)
