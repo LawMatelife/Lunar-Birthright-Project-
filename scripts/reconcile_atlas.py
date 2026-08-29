@@ -18,6 +18,7 @@ import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlparse
 
 from pymongo import MongoClient
 
@@ -38,6 +39,15 @@ def parse_expectation(raw: str) -> tuple[str, int]:
     return name, value
 
 
+def database_environment() -> tuple[str | None, str | None]:
+    mongo_url = (os.getenv("MONGO_URL") or os.getenv("DATABASE_URL") or "").strip() or None
+    db_name = (os.getenv("DB_NAME") or "").strip() or None
+    if mongo_url and not db_name and mongo_url.startswith(("mongodb://", "mongodb+srv://")):
+        parsed = urlparse(mongo_url)
+        db_name = (parsed.path or "").strip("/").split("/", 1)[0] or "lunar_birthright"
+    return mongo_url, db_name
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Read-only MongoDB Atlas collection reconciliation")
     parser.add_argument("--expect", action="append", default=[], type=parse_expectation,
@@ -47,13 +57,12 @@ def main() -> int:
     parser.add_argument("--timeout-ms", type=int, default=7000)
     args = parser.parse_args()
 
-    mongo_url = os.getenv("MONGO_URL")
-    db_name = os.getenv("DB_NAME")
+    mongo_url, db_name = database_environment()
     if not mongo_url:
-        print("ATLAS_RECONCILE_FAIL: MONGO_URL is not configured", file=sys.stderr)
+        print("ATLAS_RECONCILE_FAIL: neither MONGO_URL nor DATABASE_URL is configured", file=sys.stderr)
         return 2
     if not db_name:
-        print("ATLAS_RECONCILE_FAIL: DB_NAME is not configured", file=sys.stderr)
+        print("ATLAS_RECONCILE_FAIL: DB_NAME could not be determined", file=sys.stderr)
         return 2
 
     client = MongoClient(
@@ -69,7 +78,6 @@ def main() -> int:
         collections = sorted(name for name in db.list_collection_names() if not name.startswith("system."))
         counts = {name: db[name].count_documents({}) for name in collections}
     except Exception as exc:
-        # Do not echo the connection URI or environment values.
         print(f"ATLAS_RECONCILE_FAIL: {type(exc).__name__}: {str(exc)[:300]}", file=sys.stderr)
         return 3
     finally:
