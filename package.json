@@ -4,6 +4,6 @@
   "private": true,
   "engines": { "node": "24.x" },
   "scripts": {
-    "build": "node build.mjs && node privacy-patch.mjs && node conversion-seo-patch.mjs && python scripts/reconcile_atlas.py"
+    "build": "node build.mjs && node privacy-patch.mjs && node conversion-seo-patch.mjs && node registry-cleanup-patch.mjs && python scripts/reconcile_atlas.py"
   }
 }
