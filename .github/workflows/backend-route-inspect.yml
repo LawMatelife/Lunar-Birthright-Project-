@@ -26,10 +26,17 @@ jobs:
         run: python scripts/inspect_backend_routes.py
       - name: Print selected route functions for integration review
         run: python scripts/inspect_backend_functions.py
-      - name: Print allocation and payment helper functions for safe Payment Link integration
+      - name: Print allocation and payment helper functions for safe checkout integration
         run: >-
           python scripts/inspect_backend_functions.py
           allocate_plot_to_user
           _mark_stripe_payment_paid
           process_certificate_and_nft
           _build_checkout_metadata
+      - name: Print authentication and notification helpers for admin integration
+        run: >-
+          python scripts/inspect_backend_functions.py
+          login
+          get_me
+          create_admin_notification
+          get_current_user
