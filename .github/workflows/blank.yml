@@ -31,17 +31,17 @@ jobs:
           cache: pip
           cache-dependency-path: requirements.txt
 
-      - name: Tracked-secret, backup and diagnostic hygiene gate
+      - name: Tracked-secret backup and diagnostic hygiene gate
         run: python scripts/security_gate.py
 
-      - name: Verify Python runtime, admin, recovery helpers and entrypoints
+      - name: Verify Python runtime recovery helpers and entrypoints
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           python -m py_compile \
             api/index.py \
             api/diag.py \
-            api/admin.py \
+            api/runtime_hardening.py \
             backend/birth_moon.py \
             scripts/security_gate.py \
             scripts/audit_export.py \
@@ -49,15 +49,34 @@ jobs:
             scripts/reconcile_atlas.py \
             scripts/reconcile_browser_claims.py \
             scripts/inspect_backend_routes.py \
+            scripts/inspect_backend_functions.py \
             scripts/migrate_v4_legacy.py \
             tests/test_v4_logic.py
           python - <<'PY'
+          import json
           import motor, pymongo, fastapi
           print("motor", motor.version)
           print("pymongo", pymongo.version)
           print("fastapi", fastapi.__version__)
           assert tuple(map(int, motor.version.split('.')[:2])) >= (3, 6)
+          config = json.load(open('vercel.json', encoding='utf-8'))
+          assert config['env']['ENABLE_POLYGON_MINT'] == 'false'
+          assert config['env']['MINTING_RELEASE_GATE'] == 'closed'
+          assert not any(r.get('destination') == '/api/admin.py' for r in config.get('rewrites', []))
+          assert 'api/admin.py' not in config.get('functions', {})
+          print('VERCEL_RELEASE_GATES_OK')
           PY
+
+      - name: Verify non-destructive audit and mint gates statically
+        run: |
+          grep -q 'record_preserved' api/runtime_hardening.py
+          grep -q 'registry_exclusions' api/runtime_hardening.py
+          grep -q 'admin_actions' api/runtime_hardening.py
+          grep -q 'ENABLE_POLYGON_MINT' api/runtime_hardening.py
+          grep -q 'MINTING_RELEASE_GATE' api/runtime_hardening.py
+          ! grep -Eq 'delete_one|delete_many|find_one_and_delete' api/runtime_hardening.py
+          test ! -e api/admin.py
+          echo "NON_DESTRUCTIVE_REGISTRY_AND_MINT_GATE_OK"
 
       - name: Inspect checked-in backend route map without executing backend
         run: python scripts/inspect_backend_routes.py
@@ -70,7 +89,7 @@ jobs:
           CI: "true"
         run: npm run build:ci
 
-      - name: Verify production UI and certificate contract
+      - name: Verify production UI certificate and admin contract
         run: |
           test -f frontend/build/index.html
           test -s frontend/build/index.html
@@ -82,9 +101,12 @@ jobs:
           grep -q "Create a personalised symbolic Lunar Birthright gift for only NZ\$12." frontend/build/index.html
           grep -q "Claim Mine Free" frontend/build/index.html
           grep -q "Create a Personalised Gift — NZ\$12" frontend/build/index.html
-          grep -q "buy.stripe.com/28E4gA6zBfTIdQe5GC93y04" frontend/build/index.html
-          grep -q "buy.stripe.com/bJe7sMgab6j84fEglg93y03" frontend/build/index.html
+          grep -q "Symbolic commemorative registry only—no legal ownership of lunar land is conveyed." frontend/build/index.html
+          grep -q "LBP_REGISTRY_STATS_LIVE_V1" frontend/build/index.html
+          grep -q "LBP_ADMIN_REGISTRY_AUDIT_V1" frontend/build/index.html
+          grep -q "/api/admin/registry-decision" frontend/build/index.html
+          grep -q "/api/admin/registry-audit" frontend/build/index.html
           ! grep -Eqi 'href=["'"'"'][^"'"'"']*STRIPE_SETUP\.md' frontend/build/index.html
           ! grep -qi "NFT TOKEN \[TOKEN ID\]" frontend/build/founding-certificate.svg
-          grep -q "LBP_REGISTRY_STATS_LIVE_V1" frontend/build/index.html
-          echo "V4 recovery/admin hardening UI and certificate contract verified"
+          ! grep -qi "DIGITAL ARCHIVE KEY / NFT TOKEN ID" frontend/build/founding-certificate.svg
+          echo "V4 production recovery admin and certificate contract verified"
