@@ -52,6 +52,15 @@ def _normalise_database_environment() -> None:
         os.environ["DB_NAME"] = path_name or "lunar_birthright"
 
 
+def _normalise_diagnostic_environment() -> None:
+    """Keep the hardening health diagnostic aligned with the V4 Stripe key name."""
+    stripe_api_key = (os.getenv("STRIPE_API_KEY") or "").strip()
+    if stripe_api_key and not (os.getenv("STRIPE_SECRET_KEY") or "").strip():
+        # Compatibility alias for the read-only /api/admin/release-health check.
+        # The V4 checkout itself continues to use STRIPE_API_KEY exclusively.
+        os.environ["STRIPE_SECRET_KEY"] = stripe_api_key
+
+
 def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
@@ -85,6 +94,7 @@ def _prepare_runtime() -> None:
 
 
 _normalise_database_environment()
+_normalise_diagnostic_environment()
 _prepare_runtime()
 # Keep the extracted legacy server first, and our adjacent hardening modules second.
 sys.path.insert(0, str(API_DIR))
