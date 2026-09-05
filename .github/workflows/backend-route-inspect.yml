@@ -59,7 +59,6 @@ jobs:
           retry_my_nft
           get_nft_status
           check_nft_status_endpoint
-          reconcile_nft_status
       - name: Print email and PDF helpers before paid fulfillment patch
         run: >-
           python scripts/inspect_backend_functions.py
