@@ -86,13 +86,15 @@ def _prepare_runtime() -> None:
 
 _normalise_database_environment()
 _prepare_runtime()
-# Keep the extracted legacy server first, and our adjacent hardening module second.
+# Keep the extracted legacy server first, and our adjacent hardening modules second.
 sys.path.insert(0, str(API_DIR))
 sys.path.insert(0, str(RUNTIME_DIR))
 os.chdir(RUNTIME_DIR)
 
 import server  # noqa: E402
-from runtime_hardening import install  # noqa: E402
+from runtime_hardening import install as install_runtime_hardening  # noqa: E402
+from public_registry_hardening import install as install_public_registry_hardening  # noqa: E402
 
-install(server)
+install_runtime_hardening(server)
+install_public_registry_hardening(server)
 app = server.app
