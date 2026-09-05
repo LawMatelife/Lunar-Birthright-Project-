@@ -20,7 +20,6 @@
   "rewrites": [
     { "source": "/api/diag", "destination": "/api/diag.py" },
     { "source": "/api/registry-stats", "destination": "/api/admin.py" },
-    { "source": "/api/admin/(.*)", "destination": "/api/admin.py" },
     { "source": "/admin", "destination": "/api/admin.py" },
     { "source": "/admin/(.*)", "destination": "/api/admin.py" },
     { "source": "/api/(.*)", "destination": "/api/index.py" },
