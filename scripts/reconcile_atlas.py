@@ -40,14 +40,16 @@ def parse_expectation(raw: str) -> tuple[str, int]:
 
 
 def database_environment() -> tuple[str | None, str | None]:
-    mongo_url = (os.getenv("MONGO_URL") or os.getenv("DATABASE_URL") or "").strip() or None
+    mongo_url = (os.getenv("MONGO_URL") or "").strip() or None
+    if not mongo_url:
+        database_url = (os.getenv("DATABASE_URL") or "").strip()
+        if database_url.startswith(("mongodb://", "mongodb+srv://")):
+            mongo_url = database_url
+
     db_name = (os.getenv("DB_NAME") or "").strip() or None
     if mongo_url and not db_name:
-        if mongo_url.startswith(("mongodb://", "mongodb+srv://")):
-            parsed = urlparse(mongo_url)
-            db_name = (parsed.path or "").strip("/").split("/", 1)[0] or "lunar_birthright"
-        else:
-            db_name = "lunar_birthright"
+        parsed = urlparse(mongo_url)
+        db_name = (parsed.path or "").strip("/").split("/", 1)[0] or "lunar_birthright"
     return mongo_url, db_name
 
 
@@ -62,7 +64,7 @@ def main() -> int:
 
     mongo_url, db_name = database_environment()
     if not mongo_url:
-        print("ATLAS_RECONCILE_FAIL: neither MONGO_URL nor DATABASE_URL is configured", file=sys.stderr)
+        print("ATLAS_RECONCILE_FAIL: MONGO_URL is not configured and DATABASE_URL is not a MongoDB URI", file=sys.stderr)
         return 2
     if not db_name:
         print("ATLAS_RECONCILE_FAIL: DB_NAME could not be determined", file=sys.stderr)
