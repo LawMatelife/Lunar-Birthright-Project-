@@ -62,7 +62,7 @@ jobs:
       - name: Build exact V4 frontend candidate
         env:
           CI: "true"
-        run: npm run build
+        run: npm run build:ci
 
       - name: Verify production build and certificate contract
         run: |
