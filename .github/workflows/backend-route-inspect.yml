@@ -73,3 +73,8 @@ jobs:
           get_country_leaderboard
           get_recent_citizens
           get_viral_stats
+      - name: Print public and admin health functions before isolated deployment
+        run: >-
+          python scripts/inspect_backend_functions.py
+          public_health_check
+          get_admin_cutover_health
