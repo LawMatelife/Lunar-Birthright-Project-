@@ -53,6 +53,13 @@ jobs:
           download_certificate_pdf
           _build_nft_db_update
           mint_nft_for_certificate
+      - name: Print NFT retry and status routes before gated release
+        run: >-
+          python scripts/inspect_backend_functions.py
+          retry_my_nft
+          get_nft_status
+          check_nft_status_endpoint
+          reconcile_nft_status
       - name: Print email and PDF helpers before paid fulfillment patch
         run: >-
           python scripts/inspect_backend_functions.py
