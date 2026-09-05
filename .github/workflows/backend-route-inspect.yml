@@ -1,0 +1,25 @@
+name: Lunar Backend Route Inspect
+
+on:
+  push:
+    branches: ["v4-recovery-admin-hardening"]
+    paths:
+      - "backend_bundle/**"
+      - "scripts/inspect_backend_routes.py"
+      - ".github/workflows/backend-route-inspect.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Decode bundle and print route map only
+        run: python scripts/inspect_backend_routes.py
