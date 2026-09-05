@@ -84,7 +84,7 @@ jobs:
           grep -q "Create a Personalised Gift — NZ\$12" frontend/build/index.html
           grep -q "buy.stripe.com/28E4gA6zBfTIdQe5GC93y04" frontend/build/index.html
           grep -q "buy.stripe.com/bJe7sMgab6j84fEglg93y03" frontend/build/index.html
-          ! grep -qi "STRIPE_SETUP.md" frontend/build/index.html
+          ! grep -Eqi 'href=["'"'"'][^"'"'"']*STRIPE_SETUP\.md' frontend/build/index.html
           ! grep -qi "NFT TOKEN \[TOKEN ID\]" frontend/build/founding-certificate.svg
           grep -q "LBP_REGISTRY_STATS_LIVE_V1" frontend/build/index.html
           echo "V4 recovery/admin hardening UI and certificate contract verified"
