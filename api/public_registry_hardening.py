@@ -82,8 +82,9 @@ async def _countries(server, excluded_ids: list[str]) -> dict:
         {"$match": match},
         {"$group": {"_id": "$country", "count": {"$sum": 1}}},
         {"$sort": {"count": -1, "_id": 1}},
+        {"$limit": 100},
     ]
-    rows = await server.db.users.aggregate(pipeline).to_list(None)
+    rows = await server.db.users.aggregate(pipeline).to_list(100)
     countries = [
         {"country": str(row.get("_id") or "").strip(), "count": int(row.get("count") or 0)}
         for row in rows
@@ -108,7 +109,7 @@ async def _leaderboard(server, excluded_ids: list[str]) -> dict:
     ordered = sorted(
         by_country.items(),
         key=lambda item: (-item[1]["citizens"], item[0].lower()),
-    )
+    )[:20]
     leaderboard = [
         {
             "rank": index,
@@ -121,19 +122,22 @@ async def _leaderboard(server, excluded_ids: list[str]) -> dict:
     return {"leaderboard": leaderboard, "total_countries": len(leaderboard)}
 
 
-async def _recent(server, excluded_ids: list[str]) -> dict:
+async def _recent(server, excluded_ids: list[str], limit: int = 8) -> dict:
+    limit = max(1, min(int(limit), 20))
+    query = _retained_query(excluded_ids)
+    query["full_name"] = {"$ne": None}
     users = await server.db.users.find(
-        _retained_query(excluded_ids),
+        query,
         {"_id": 0, "full_name": 1, "country": 1, "created_at": 1, "certificate_number": 1},
-    ).sort("created_at", -1).limit(10).to_list(10)
+    ).sort("created_at", -1).limit(limit).to_list(limit)
     citizens = []
     for user in users:
         full_name = str(user.get("full_name") or "").strip()
         citizens.append({
-            "first_name": full_name.split()[0] if full_name else "Citizen",
-            "country": str(user.get("country") or "").strip(),
+            "first_name": full_name.split()[0] if full_name else "Anonymous",
+            "country": str(user.get("country") or "Earth").strip() or "Earth",
             "claimed_at": _json_time(user.get("created_at")),
-            "citizen_number": _citizen_number(user.get("certificate_number", "")),
+            "citizen_number": _citizen_number(user.get("certificate_number", "")) or None,
         })
     return {"citizens": citizens}
 
@@ -184,7 +188,12 @@ def install(server) -> None:
         elif path == "/api/registry/leaderboard":
             payload = await _leaderboard(server, excluded_ids)
         elif path == "/api/registry/recent-citizens":
-            payload = await _recent(server, excluded_ids)
+            raw_limit = request.query_params.get("limit", "8")
+            try:
+                limit = int(raw_limit)
+            except (TypeError, ValueError):
+                limit = 8
+            payload = await _recent(server, excluded_ids, limit)
         else:
             payload = await _viral(server, excluded_ids)
 
