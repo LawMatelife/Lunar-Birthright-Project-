@@ -4,7 +4,7 @@
   "private": true,
   "engines": { "node": "24.x" },
   "scripts": {
-    "build:frontend": "node build.mjs && node privacy-patch.mjs && node conversion-seo-patch.mjs && node registry-cleanup-patch.mjs",
+    "build:frontend": "node build.mjs && node privacy-patch.mjs && node conversion-seo-patch.mjs && node registry-cleanup-patch.mjs && node production-gift-path-patch.mjs",
     "reconcile:atlas": "python scripts/reconcile_atlas.py",
     "build:ci": "npm run build:frontend",
     "build": "npm run build:frontend && npm run reconcile:atlas"
