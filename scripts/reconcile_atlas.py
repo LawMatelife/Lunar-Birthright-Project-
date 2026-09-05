@@ -42,9 +42,12 @@ def parse_expectation(raw: str) -> tuple[str, int]:
 def database_environment() -> tuple[str | None, str | None]:
     mongo_url = (os.getenv("MONGO_URL") or os.getenv("DATABASE_URL") or "").strip() or None
     db_name = (os.getenv("DB_NAME") or "").strip() or None
-    if mongo_url and not db_name and mongo_url.startswith(("mongodb://", "mongodb+srv://")):
-        parsed = urlparse(mongo_url)
-        db_name = (parsed.path or "").strip("/").split("/", 1)[0] or "lunar_birthright"
+    if mongo_url and not db_name:
+        if mongo_url.startswith(("mongodb://", "mongodb+srv://")):
+            parsed = urlparse(mongo_url)
+            db_name = (parsed.path or "").strip("/").split("/", 1)[0] or "lunar_birthright"
+        else:
+            db_name = "lunar_birthright"
     return mongo_url, db_name
 
 
