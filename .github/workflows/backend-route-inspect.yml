@@ -50,3 +50,9 @@ jobs:
           download_certificate_pdf
           _build_nft_db_update
           mint_nft_for_certificate
+      - name: Print email and PDF helpers before paid fulfillment patch
+        run: >-
+          python scripts/inspect_backend_functions.py
+          send_email_async
+          generate_premium_certificate_pdf
+          get_purchase_confirmation_email_html
