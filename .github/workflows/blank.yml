@@ -43,6 +43,7 @@ jobs:
             api/diag.py \
             api/runtime_hardening.py \
             api/public_registry_hardening.py \
+            api/admin_profile_tools.py \
             backend/birth_moon.py \
             scripts/security_gate.py \
             scripts/audit_export.py \
@@ -87,7 +88,12 @@ jobs:
           grep -q '/api/registry/countries' api/public_registry_hardening.py
           grep -q '/api/registry/leaderboard' api/public_registry_hardening.py
           grep -q '/api/registry/viral-stats' api/public_registry_hardening.py
-          ! grep -Eq 'delete_one|delete_many|find_one_and_delete' api/runtime_hardening.py api/public_registry_hardening.py
+          grep -q '/api/admin/profile-update' api/admin_profile_tools.py
+          grep -q '/api/admin/duplicate-check' api/admin_profile_tools.py
+          grep -q '/api/admin/registry-classify' api/admin_profile_tools.py
+          grep -q 'name_match_not_used' api/admin_profile_tools.py
+          grep -q 'Founding Citizen 000001 is protected from exclusion' api/admin_profile_tools.py
+          ! grep -Eq 'delete_one|delete_many|find_one_and_delete' api/runtime_hardening.py api/public_registry_hardening.py api/admin_profile_tools.py
           test ! -e api/admin.py
           echo "NON_DESTRUCTIVE_REGISTRY_AND_MINT_GATE_OK"
 
@@ -117,9 +123,13 @@ jobs:
           grep -q "Symbolic commemorative registry only—no legal ownership of lunar land is conveyed." frontend/build/index.html
           grep -q "LBP_REGISTRY_STATS_LIVE_V1" frontend/build/index.html
           grep -q "LBP_ADMIN_REGISTRY_AUDIT_V1" frontend/build/index.html
+          grep -q "LBP_ADMIN_PROFILE_TOOLS_V1" frontend/build/index.html
           grep -q "/api/admin/registry-decision" frontend/build/index.html
           grep -q "/api/admin/registry-audit" frontend/build/index.html
+          grep -q "/api/admin/profile-update" frontend/build/index.html
+          grep -q "/api/admin/duplicate-check" frontend/build/index.html
+          grep -q "/api/admin/registry-classify" frontend/build/index.html
           ! grep -Eqi 'href=["'"'"'][^"'"'"']*STRIPE_SETUP\.md' frontend/build/index.html
           ! grep -qi "NFT TOKEN \[TOKEN ID\]" frontend/build/founding-certificate.svg
           ! grep -qi "DIGITAL ARCHIVE KEY / NFT TOKEN ID" frontend/build/founding-certificate.svg
-          echo "V4 production recovery admin and certificate contract verified"
+          echo "V4 production recovery admin, profile tools and certificate contract verified"
