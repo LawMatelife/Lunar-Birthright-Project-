@@ -104,7 +104,9 @@ os.chdir(RUNTIME_DIR)
 import server  # noqa: E402
 from runtime_hardening import install as install_runtime_hardening  # noqa: E402
 from public_registry_hardening import install as install_public_registry_hardening  # noqa: E402
+from admin_profile_tools import install as install_admin_profile_tools  # noqa: E402
 
 install_runtime_hardening(server)
 install_public_registry_hardening(server)
+install_admin_profile_tools(server)
 app = server.app
