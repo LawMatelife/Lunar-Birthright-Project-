@@ -4,7 +4,7 @@
   "private": true,
   "engines": { "node": "24.x" },
   "scripts": {
-    "build:frontend": "node build.mjs && node privacy-patch.mjs && node conversion-seo-patch.mjs && node registry-cleanup-patch.mjs && node production-gift-path-patch.mjs && node registry-stats-live-patch.mjs",
+    "build:frontend": "node build.mjs && node privacy-patch.mjs && node conversion-seo-patch.mjs && node registry-cleanup-patch.mjs && node production-gift-path-patch.mjs && node registry-stats-live-patch.mjs && node admin-audit-patch.mjs",
     "reconcile:browser": "python scripts/reconcile_browser_claims.py",
     "reconcile:atlas": "python scripts/reconcile_atlas.py",
     "build:ci": "npm run build:frontend",
