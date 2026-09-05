@@ -2,9 +2,9 @@ name: Lunar Birthright CI
 
 on:
   push:
-    branches: ["main", "v4-production-candidate"]
+    branches: ["main", "v4-production-candidate", "v4-recovery-admin-hardening"]
   pull_request:
-    branches: ["main"]
+    branches: ["main", "v4-production-candidate"]
   workflow_dispatch:
 
 permissions:
@@ -34,18 +34,20 @@ jobs:
       - name: Tracked-secret, backup and diagnostic hygiene gate
         run: python scripts/security_gate.py
 
-      - name: Verify Python runtime, migration helpers and entrypoints
+      - name: Verify Python runtime, admin, recovery helpers and entrypoints
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           python -m py_compile \
             api/index.py \
             api/diag.py \
+            api/admin.py \
             backend/birth_moon.py \
             scripts/security_gate.py \
             scripts/audit_export.py \
             scripts/restore_export_to_atlas.py \
             scripts/reconcile_atlas.py \
+            scripts/reconcile_browser_claims.py \
             scripts/migrate_v4_legacy.py \
             tests/test_v4_logic.py
           python - <<'PY'
@@ -59,12 +61,12 @@ jobs:
       - name: Run deterministic V4 logic tests
         run: python -m unittest discover -s tests -v
 
-      - name: Build exact V4 frontend candidate
+      - name: Build exact V4 frontend candidate without touching Atlas
         env:
           CI: "true"
         run: npm run build:ci
 
-      - name: Verify production build and certificate contract
+      - name: Verify production UI and certificate contract
         run: |
           test -f frontend/build/index.html
           test -s frontend/build/index.html
@@ -72,5 +74,13 @@ jobs:
           grep -q "LUNAR BIRTHRIGHT" frontend/build/founding-certificate.svg
           grep -q "BIRTH DATE" frontend/build/founding-certificate.svg
           grep -q "SYMBOLIC PLOT COORDINATES" frontend/build/founding-certificate.svg
-          grep -q "not legal title" frontend/build/founding-certificate.svg
-          echo "V4 CI build and certificate contract verified"
+          grep -q "Their Birthday. Their Birth Moon. Their Place on the Moon." frontend/build/index.html
+          grep -q "Create a personalised symbolic Lunar Birthright gift for only NZ\$12." frontend/build/index.html
+          grep -q "Claim Mine Free" frontend/build/index.html
+          grep -q "Create a Personalised Gift — NZ\$12" frontend/build/index.html
+          grep -q "buy.stripe.com/28E4gA6zBfTIdQe5GC93y04" frontend/build/index.html
+          grep -q "buy.stripe.com/bJe7sMgab6j84fEglg93y03" frontend/build/index.html
+          ! grep -qi "STRIPE_SETUP.md" frontend/build/index.html
+          ! grep -qi "NFT TOKEN \[TOKEN ID\]" frontend/build/founding-certificate.svg
+          grep -q "LBP_REGISTRY_STATS_LIVE_V1" frontend/build/index.html
+          echo "V4 recovery/admin hardening UI and certificate contract verified"
