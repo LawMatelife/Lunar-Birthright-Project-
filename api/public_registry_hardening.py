@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from fastapi.responses import JSONResponse
 
 
@@ -16,6 +18,12 @@ FOUNDING_GOAL = 1_000_000
 def _citizen_number(certificate_number: str) -> int:
     tail = str(certificate_number or "").strip().split("-")[-1]
     return int(tail) if tail.isdigit() else 0
+
+
+def _json_time(value):
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return str(value) if value is not None else None
 
 
 async def _excluded_ids(server) -> list[str]:
@@ -124,7 +132,7 @@ async def _recent(server, excluded_ids: list[str]) -> dict:
         citizens.append({
             "first_name": full_name.split()[0] if full_name else "Citizen",
             "country": str(user.get("country") or "").strip(),
-            "claimed_at": user.get("created_at"),
+            "claimed_at": _json_time(user.get("created_at")),
             "citizen_number": _citizen_number(user.get("certificate_number", "")),
         })
     return {"citizens": citizens}
