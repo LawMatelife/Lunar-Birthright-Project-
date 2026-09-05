@@ -7,6 +7,7 @@ on:
       - "backend_bundle/**"
       - "scripts/inspect_backend_routes.py"
       - "scripts/inspect_backend_functions.py"
+      - "scripts/inspect_backend_env.py"
       - ".github/workflows/backend-route-inspect.yml"
   workflow_dispatch:
 
@@ -24,6 +25,8 @@ jobs:
           python-version: "3.12"
       - name: Decode bundle and print route map only
         run: python scripts/inspect_backend_routes.py
+      - name: Print backend environment variable names only
+        run: python scripts/inspect_backend_env.py
       - name: Print selected route functions for integration review
         run: python scripts/inspect_backend_functions.py
       - name: Print allocation and payment helper functions for safe checkout integration
