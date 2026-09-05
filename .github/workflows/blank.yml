@@ -48,6 +48,7 @@ jobs:
             scripts/restore_export_to_atlas.py \
             scripts/reconcile_atlas.py \
             scripts/reconcile_browser_claims.py \
+            scripts/inspect_backend_routes.py \
             scripts/migrate_v4_legacy.py \
             tests/test_v4_logic.py
           python - <<'PY'
@@ -57,6 +58,9 @@ jobs:
           print("fastapi", fastapi.__version__)
           assert tuple(map(int, motor.version.split('.')[:2])) >= (3, 6)
           PY
+
+      - name: Inspect checked-in backend route map without executing backend
+        run: python scripts/inspect_backend_routes.py
 
       - name: Run deterministic V4 logic tests
         run: python -m unittest discover -s tests -v
