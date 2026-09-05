@@ -3,6 +3,9 @@
   "framework": null,
   "buildCommand": "npm run build",
   "outputDirectory": "frontend/build",
+  "env": {
+    "DB_NAME": "lunar_birthright"
+  },
   "functions": {
     "api/index.py": {
       "maxDuration": 60
