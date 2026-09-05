@@ -10,11 +10,11 @@
 (() => {
   'use strict';
 
-  const VERSION = '1.0.0';
+  const VERSION = '1.1.0';
   const CLAIM_KEY = /(claim|register|registration|form|draft|citizen|profile|identity|plot|certificate|lunar|birth.?moon)/i;
   const CLAIM_VALUE = /(email|birth.?date|citizen|claim|plot|certificate|lunar_(?:lat|lon|sector)|lunar\s+(?:lat|lon|sector)|birth.?moon)/i;
   const SECRET_KEY = /(password|passwd|secret|token|jwt|stripe|api.?key|authorization|bearer|cookie|session.?token|refresh.?token|access.?token)/i;
-  const ALLOWED_STABLE_KEY = /^(id|user_id|userId|account_id|accountId|owner_id|ownerId|plot_id|plotId|certificate_id|certificateId|citizen_number|citizenNumber|session_id|sessionId)$/i;
+  const ALLOWED_STABLE_KEY = /^(id|user_id|userId|account_id|accountId|owner_id|ownerId|plot_id|plotId|claim_id|claimId|certificate_id|certificateId|certificate_number|certificateNumber|cert_number|certNumber|citizen_number|citizenNumber|session_id|sessionId)$/i;
 
   function redact(value, depth = 0) {
     if (depth > 12) return '[MAX_DEPTH]';
