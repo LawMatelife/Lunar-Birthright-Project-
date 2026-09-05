@@ -40,3 +40,13 @@ jobs:
           get_me
           create_admin_notification
           get_current_user
+      - name: Print certificate delivery helpers before mint decoupling
+        run: >-
+          python scripts/inspect_backend_functions.py
+          _build_certificate_urls
+          send_purchase_confirmation_email
+          get_my_certificate
+          get_certificate_status
+          download_certificate_pdf
+          _build_nft_db_update
+          mint_nft_for_certificate
