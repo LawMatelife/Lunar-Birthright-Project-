@@ -8,6 +8,7 @@
     "reconcile:browser": "python scripts/reconcile_browser_claims.py",
     "reconcile:atlas": "python scripts/reconcile_atlas.py",
     "build:ci": "npm run build:frontend",
-    "build": "npm run build:frontend && npm run reconcile:atlas"
+    "build:release": "npm run build:frontend && npm run reconcile:atlas",
+    "build": "npm run build:frontend"
   }
 }
