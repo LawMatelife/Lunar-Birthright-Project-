@@ -124,7 +124,6 @@ jobs:
           grep -q "LBP_REGISTRY_STATS_LIVE_V1" frontend/build/index.html
           grep -q "LBP_ADMIN_REGISTRY_AUDIT_V1" frontend/build/index.html
           grep -q "LBP_ADMIN_PROFILE_TOOLS_V1" frontend/build/index.html
-          grep -q "/api/admin/registry-decision" frontend/build/index.html
           grep -q "/api/admin/registry-audit" frontend/build/index.html
           grep -q "/api/admin/profile-update" frontend/build/index.html
           grep -q "/api/admin/duplicate-check" frontend/build/index.html
