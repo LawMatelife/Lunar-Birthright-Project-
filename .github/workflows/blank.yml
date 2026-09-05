@@ -42,6 +42,7 @@ jobs:
             api/index.py \
             api/diag.py \
             api/runtime_hardening.py \
+            api/public_registry_hardening.py \
             backend/birth_moon.py \
             scripts/security_gate.py \
             scripts/audit_export.py \
@@ -50,6 +51,7 @@ jobs:
             scripts/reconcile_browser_claims.py \
             scripts/inspect_backend_routes.py \
             scripts/inspect_backend_functions.py \
+            scripts/inspect_backend_env.py \
             scripts/migrate_v4_legacy.py \
             tests/test_v4_logic.py
           python - <<'PY'
@@ -64,17 +66,28 @@ jobs:
           assert config['env']['MINTING_RELEASE_GATE'] == 'closed'
           assert not any(r.get('destination') == '/api/admin.py' for r in config.get('rewrites', []))
           assert 'api/admin.py' not in config.get('functions', {})
+          env_example = open('.env.example', encoding='utf-8').read()
+          for required in ('JWT_SECRET_KEY=', 'STRIPE_API_KEY=', 'STRIPE_WEBHOOK_SECRET=', 'MONGO_URL=', 'RESEND_API_KEY='):
+              assert required in env_example, required
+          assert '\nJWT_SECRET=' not in env_example
+          assert '\nSTRIPE_SECRET_KEY=' not in env_example
           print('VERCEL_RELEASE_GATES_OK')
           PY
 
-      - name: Verify non-destructive audit and mint gates statically
+      - name: Verify non-destructive audit registry and mint gates statically
         run: |
           grep -q 'record_preserved' api/runtime_hardening.py
           grep -q 'registry_exclusions' api/runtime_hardening.py
           grep -q 'admin_actions' api/runtime_hardening.py
           grep -q 'ENABLE_POLYGON_MINT' api/runtime_hardening.py
           grep -q 'MINTING_RELEASE_GATE' api/runtime_hardening.py
-          ! grep -Eq 'delete_one|delete_many|find_one_and_delete' api/runtime_hardening.py
+          grep -q 'registry_exclusions' api/public_registry_hardening.py
+          grep -q '/api/registry/counter' api/public_registry_hardening.py
+          grep -q '/api/registry/recent-citizens' api/public_registry_hardening.py
+          grep -q '/api/registry/countries' api/public_registry_hardening.py
+          grep -q '/api/registry/leaderboard' api/public_registry_hardening.py
+          grep -q '/api/registry/viral-stats' api/public_registry_hardening.py
+          ! grep -Eq 'delete_one|delete_many|find_one_and_delete' api/runtime_hardening.py api/public_registry_hardening.py
           test ! -e api/admin.py
           echo "NON_DESTRUCTIVE_REGISTRY_AND_MINT_GATE_OK"
 
