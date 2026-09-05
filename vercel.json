@@ -4,7 +4,9 @@
   "buildCommand": "npm run build:ci",
   "outputDirectory": "frontend/build",
   "env": {
-    "DB_NAME": "lunar_birthright"
+    "DB_NAME": "lunar_birthright",
+    "ENABLE_POLYGON_MINT": "false",
+    "MINTING_RELEASE_GATE": "closed"
   },
   "functions": {
     "api/index.py": {
@@ -12,16 +14,10 @@
     },
     "api/diag.py": {
       "maxDuration": 20
-    },
-    "api/admin.py": {
-      "maxDuration": 30
     }
   },
   "rewrites": [
     { "source": "/api/diag", "destination": "/api/diag.py" },
-    { "source": "/api/registry-stats", "destination": "/api/admin.py" },
-    { "source": "/admin", "destination": "/api/admin.py" },
-    { "source": "/admin/(.*)", "destination": "/api/admin.py" },
     { "source": "/api/(.*)", "destination": "/api/index.py" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
@@ -38,6 +34,14 @@
     },
     {
       "source": "/api/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "private, no-store, max-age=0" },
+        { "key": "Pragma", "value": "no-cache" },
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive" }
+      ]
+    },
+    {
+      "source": "/admin",
       "headers": [
         { "key": "Cache-Control", "value": "private, no-store, max-age=0" },
         { "key": "Pragma", "value": "no-cache" },
