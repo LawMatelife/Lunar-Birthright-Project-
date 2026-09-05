@@ -59,3 +59,11 @@ jobs:
           send_email_async
           generate_premium_certificate_pdf
           get_purchase_confirmation_email_html
+      - name: Print public registry functions before audited override
+        run: >-
+          python scripts/inspect_backend_functions.py
+          get_registry_counter
+          get_country_statistics
+          get_country_leaderboard
+          get_recent_citizens
+          get_viral_stats
