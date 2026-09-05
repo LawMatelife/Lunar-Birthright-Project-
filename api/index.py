@@ -9,7 +9,8 @@ import tarfile
 import tempfile
 from urllib.parse import urlparse
 
-ROOT = Path(__file__).resolve().parents[1]
+API_DIR = Path(__file__).resolve().parent
+ROOT = API_DIR.parent
 PARTS = [
     "p00.txt",
     "p01a.txt",
@@ -38,7 +39,7 @@ ARCHIVE_PATH = TEMP_DIR / "lbp_backend_v4.tar.gz"
 
 
 def _normalise_database_environment() -> None:
-    """Accept the Vercel DATABASE_URL alias without changing stored secrets."""
+    """Accept a Vercel DATABASE_URL alias only when it is genuinely MongoDB."""
     mongo_url = (os.getenv("MONGO_URL") or "").strip()
     database_url = (os.getenv("DATABASE_URL") or "").strip()
     if not mongo_url and database_url.startswith(("mongodb://", "mongodb+srv://")):
@@ -85,7 +86,13 @@ def _prepare_runtime() -> None:
 
 _normalise_database_environment()
 _prepare_runtime()
+# Keep the extracted legacy server first, and our adjacent hardening module second.
+sys.path.insert(0, str(API_DIR))
 sys.path.insert(0, str(RUNTIME_DIR))
 os.chdir(RUNTIME_DIR)
 
-from server import app  # noqa: E402,F401
+import server  # noqa: E402
+from runtime_hardening import install  # noqa: E402
+
+install(server)
+app = server.app
