@@ -7,6 +7,7 @@ if (!fs.existsSync(indexPath)) throw new Error('frontend/build/index.html missin
 
 let html = fs.readFileSync(indexPath, 'utf8');
 const MARKER = 'LBP_PRODUCTION_GIFT_PATH_V1';
+const DISCLAIMER = 'Symbolic commemorative registry only—no legal ownership of lunar land is claimed.';
 
 const enhancement = String.raw`<style id="lbp-production-gift-style">
 .lbp-pathways{display:flex;gap:14px;justify-content:center;align-items:stretch;flex-wrap:wrap;margin:20px auto 12px;max-width:820px}.lbp-pathways a,.lbp-pathways button,.lbp-free-path,.lbp-premium-path{min-height:52px;padding:14px 22px;border-radius:999px;font:800 16px/1.2 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}.lbp-free-path{background:#f5f5f5!important;color:#080808!important;border:1px solid #f5f5f5!important}.lbp-premium-path{background:linear-gradient(135deg,#090909,#1b170c)!important;color:#f0c967!important;border:1px solid #d4af37!important;box-shadow:0 10px 28px rgba(212,175,55,.14)}.lbp-production-subhead{max-width:760px;margin:10px auto 18px;text-align:center;color:#e8ddbf;font-size:clamp(16px,2.2vw,21px);line-height:1.5}.lbp-mandatory-disclaimer{max-width:820px;margin:14px auto;padding:12px 16px;border:1px solid rgba(212,175,55,.55);border-radius:12px;background:#0a0a0a;color:#f2d57b;text-align:center;font:700 13px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.lbp-premium-certificate{background:linear-gradient(135deg,#000 0%,#1a1a1a 100%);border:2px solid #d4af37;color:#d4af37}.lbp-token-hidden{display:none!important}@media(max-width:640px){.lbp-pathways{flex-direction:column;padding:0 14px}.lbp-pathways a,.lbp-pathways button{width:100%;box-sizing:border-box}}
@@ -15,7 +16,7 @@ const enhancement = String.raw`<style id="lbp-production-gift-style">
 /* ${MARKER} */
 (function(){
 'use strict';
-var DISCLAIMER='Symbolic commemorative registry only—no legal ownership of lunar land is claimed.';
+var DISCLAIMER=${JSON.stringify(DISCLAIMER)};
 function text(el){return ((el&&el.textContent)||'').replace(/\\s+/g,' ').trim()}
 function byText(sel,re){return Array.from(document.querySelectorAll(sel)).find(function(el){return re.test(text(el))})}
 function removeInternalStatus(){
