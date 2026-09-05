@@ -7,6 +7,7 @@ if (!fs.existsSync(indexPath)) throw new Error('frontend/build/index.html missin
 
 let html = fs.readFileSync(indexPath, 'utf8');
 const MARKER = 'LBP_PRODUCTION_GIFT_PATH_V1';
+const DISCLAIMER = 'Symbolic commemorative registry only—no legal ownership of lunar land is claimed.';
 const GIFT_CHECKOUT_URL = process.env.LUNAR_GIFT_CHECKOUT_URL || 'https://buy.stripe.com/28E4gA6zBfTIdQe5GC93y04';
 const UPGRADE_CHECKOUT_URL = process.env.LUNAR_UPGRADE_CHECKOUT_URL || 'https://buy.stripe.com/bJe7sMgab6j84fEglg93y03';
 
@@ -17,7 +18,7 @@ const enhancement = String.raw`<style id="lbp-production-gift-style">
 /* ${MARKER} */
 (function(){
 'use strict';
-var DISCLAIMER='Symbolic commemorative registry only—no legal ownership of lunar land is claimed.';
+var DISCLAIMER=${JSON.stringify(DISCLAIMER)};
 var GIFT_CHECKOUT_URL=${JSON.stringify(GIFT_CHECKOUT_URL)};
 var UPGRADE_CHECKOUT_URL=${JSON.stringify(UPGRADE_CHECKOUT_URL)};
 function text(el){return ((el&&el.textContent)||'').replace(/\\s+/g,' ').trim()}
