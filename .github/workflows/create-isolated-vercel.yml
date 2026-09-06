@@ -1,6 +1,6 @@
 name: Create Isolated Lunar Vercel Preview
 
-# Trigger re-check after Lunar CI gate passed on 2026-09-06.
+# Trigger fresh run after VERCEL_TOKEN repository secret was added on 2026-09-06.
 on:
   push:
     branches: ["v4-recovery-admin-hardening"]
