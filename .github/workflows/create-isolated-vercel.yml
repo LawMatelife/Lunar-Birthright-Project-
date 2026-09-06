@@ -1,6 +1,6 @@
 name: Create Isolated Lunar Vercel Preview
 
-# Trigger fresh run after VERCEL_TOKEN repository secret was added on 2026-09-06.
+# Presence-only repository-secret diagnostic; never prints secret values.
 on:
   push:
     branches: ["v4-recovery-admin-hardening"]
@@ -23,17 +23,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verify Vercel token is available without exposing it
+      - name: Verify repository secrets are available without exposing them
         id: token
         shell: bash
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
         run: |
+          if [ -n "$NEON_API_KEY" ]; then
+            echo "LUNAR_SECRET_DIAG_NEON_PRESENT=true"
+          else
+            echo "LUNAR_SECRET_DIAG_NEON_PRESENT=false"
+          fi
           if [ -z "$VERCEL_TOKEN" ]; then
             echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "LUNAR_SECRET_DIAG_VERCEL_PRESENT=false"
             echo "LUNAR_ISOLATED_VERCEL_BLOCKED_NO_TOKEN"
           else
             echo "available=true" >> "$GITHUB_OUTPUT"
+            echo "LUNAR_SECRET_DIAG_VERCEL_PRESENT=true"
             echo "LUNAR_ISOLATED_VERCEL_TOKEN_PRESENT"
           fi
 
