@@ -108,6 +108,14 @@ jobs:
           CI: "true"
         run: npm run build:ci
 
+      - name: Inspect isolated upgrade payment flow
+        run: |
+          echo "FRONTEND_UPGRADE_CHECKOUT_REFERENCES_BEGIN"
+          grep -R -n -C 12 "/certificate/checkout" frontend/src || true
+          grep -R -n -C 8 "redirect=/upgrade" frontend/src || true
+          echo "FRONTEND_UPGRADE_CHECKOUT_REFERENCES_END"
+          python scripts/inspect_backend_functions.py create_certificate_checkout stripe_webhook
+
       - name: Verify production UI certificate and admin contract
         run: |
           test -f frontend/build/index.html
