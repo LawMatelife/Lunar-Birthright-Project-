@@ -1,0 +1,78 @@
+name: Verify Isolated Lunar Vercel Separation
+
+on:
+  push:
+    branches: ["v4-recovery-admin-hardening"]
+    paths:
+      - ".github/workflows/verify-isolated-vercel.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  VERCEL_TEAM_ID: team_SnpCi1c3nwHCVvUXpv0AeLwl
+  LUNAR_PROJECT: lunar-birthright-v4-isolated
+  LAWMATE_PROJECT_ID: prj_Wom2MYpCF6wwz44qc68ObKm4cgNs
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify Lunar project, custom domains, and LawMate identity
+        shell: bash
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$VERCEL_TOKEN"
+          auth=(-H "Authorization: Bearer $VERCEL_TOKEN")
+
+          curl -fsS "${auth[@]}" \
+            "https://api.vercel.com/v9/projects/$LUNAR_PROJECT?teamId=$VERCEL_TEAM_ID" \
+            -o /tmp/lunar-project.json
+
+          python - <<'PY'
+          import json
+          p=json.load(open('/tmp/lunar-project.json'))
+          assert p.get('name') == 'lunar-birthright-v4-isolated', p.get('name')
+          print('LUNAR_VERIFY_PROJECT_EXISTS=true')
+          print('LUNAR_VERIFY_PROJECT_ID=' + str(p.get('id')))
+          print('LUNAR_VERIFY_PROJECT_NAME=' + str(p.get('name')))
+          PY
+
+          lunar_id=$(python - <<'PY'
+          import json
+          print(json.load(open('/tmp/lunar-project.json'))['id'])
+          PY
+          )
+
+          curl -fsS "${auth[@]}" \
+            "https://api.vercel.com/v9/projects/$lunar_id/domains?teamId=$VERCEL_TEAM_ID" \
+            -o /tmp/lunar-domains.json
+
+          python - <<'PY'
+          import json
+          d=json.load(open('/tmp/lunar-domains.json'))
+          domains=d.get('domains', []) if isinstance(d, dict) else []
+          names=[x.get('name','') for x in domains]
+          custom=[n for n in names if n and not n.endswith('.vercel.app')]
+          print('LUNAR_VERIFY_DOMAIN_COUNT=' + str(len(names)))
+          print('LUNAR_VERIFY_CUSTOM_DOMAIN_COUNT=' + str(len(custom)))
+          assert not custom, 'Unexpected Lunar custom domains: ' + ', '.join(custom)
+          print('LUNAR_VERIFY_NO_CUSTOM_DOMAIN=true')
+          PY
+
+          curl -fsS "${auth[@]}" \
+            "https://api.vercel.com/v9/projects/$LAWMATE_PROJECT_ID?teamId=$VERCEL_TEAM_ID" \
+            -o /tmp/lawmate-project.json
+
+          python - <<'PY'
+          import json
+          p=json.load(open('/tmp/lawmate-project.json'))
+          assert p.get('id') == 'prj_Wom2MYpCF6wwz44qc68ObKm4cgNs', p.get('id')
+          assert p.get('name') == 'lawmate', p.get('name')
+          print('LAWMATE_VERIFY_PROJECT_UNCHANGED_ID=true')
+          print('LAWMATE_VERIFY_PROJECT_ID=' + str(p.get('id')))
+          print('LAWMATE_VERIFY_PROJECT_NAME=' + str(p.get('name')))
+          PY
