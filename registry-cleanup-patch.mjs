@@ -6,19 +6,20 @@ const indexPath = path.join(root, 'frontend', 'build', 'index.html');
 if (!fs.existsSync(indexPath)) throw new Error('frontend/build/index.html missing');
 
 let html = fs.readFileSync(indexPath, 'utf8');
-const MARKER = 'LBP_REGISTRY_CLEANUP_V1';
+const MARKER = 'LBP_REGISTRY_CLEANUP_V3';
 
 const cleanup = String.raw`<script id="lbp-registry-cleanup">
 /* ${MARKER} */
 (function(){
 'use strict';
 
-function norm(value){
-  return (value || '').replace(/\s+/g,' ').trim().toLowerCase();
-}
-
 function removeLegacyProductionNotice(){
   var patterns = [
+    /founding\s+preview\s+citizens\s+are\s+shown\s+while\s+the\s+original\s+archive\s+is\s+being\s+recovered\.?/i,
+    /original\s+archive\s+(?:is\s+)?being\s+recovered/i,
+    /preview\s+citizens?.*archive.*recover/i,
+    /for\s+full\s+cross-device\s+login\s+later.*connect\s+supabase/i,
+    /connect\s+supabase\s+accounts?/i,
     /names?\s+(?:are\s+)?waiting\s+(?:to\s+come\s+)?from\s+production/i,
     /waiting\s+(?:on|for)\s+.*production/i,
     /(?:users?|citizens?|names?)\s+(?:are\s+)?(?:being\s+)?(?:migrated|transferred|moved|changed\s+over)\s+from\s+(?:the\s+)?(?:old\s+)?(?:development|production)/i,
@@ -40,41 +41,15 @@ function removeLegacyProductionNotice(){
   });
 }
 
-function dedupeExactCitizenEntries(){
-  var selectors = [
-    'tr',
-    'article',
-    'li',
-    '[class*="citizen" i]',
-    '[class*="registry" i]',
-    '[class*="claimant" i]',
-    '[class*="member" i]',
-    '[class*="user-card" i]'
-  ];
-  var nodes = Array.from(document.querySelectorAll(selectors.join(',')));
-  var seen = new Set();
-
-  nodes.forEach(function(el){
-    if (!el || !el.isConnected) return;
-    var text = norm(el.textContent);
-    if (text.length < 4 || text.length > 700) return;
-
-    var className = norm(typeof el.className === 'string' ? el.className : '');
-    var citizenLike = /citizen|registry|claimant|lunar\s+citizen|certificate\s*(?:id|no)|country|claim/.test(text + ' ' + className);
-    if (!citizenLike) return;
-
-    var key = el.tagName.toLowerCase() + '|' + text;
-    if (seen.has(key)) {
-      el.remove();
-      return;
-    }
-    seen.add(key);
-  });
-}
-
+/*
+ * Deliberately NO citizen-card/row de-duplication here.
+ * Two genuine citizens can have identical visible names/text. Any duplicate
+ * decision belongs to the authoritative registry reconciliation and must use
+ * stable identifiers such as user/account ID, normalized email, plot ID,
+ * citizen number or certificate ID. Presentation code must not hide people.
+ */
 function cleanupRegistry(){
   removeLegacyProductionNotice();
-  dedupeExactCitizenEntries();
 }
 
 if (document.readyState === 'loading') {
@@ -95,9 +70,11 @@ new MutationObserver(function(){
 })();
 </script>`;
 
+/* Replace older injected versions so stale cleanup logic cannot survive in build artifacts. */
+html = html.replace(/<script id="lbp-registry-cleanup">[\s\S]*?<\/script>/i, cleanup.match(/<script[\s\S]*<\/script>/i)?.[0] || '');
 if (!html.includes(MARKER)) {
   html = html.replace(/<\/body>/i, cleanup + '\n</body>');
-  fs.writeFileSync(indexPath, html);
 }
+fs.writeFileSync(indexPath, html);
 
-console.log('LBP_REGISTRY_CLEANUP_OK');
+console.log('LBP_REGISTRY_CLEANUP_OK — obsolete recovery notices removed; stable-ID reconciliation only');
