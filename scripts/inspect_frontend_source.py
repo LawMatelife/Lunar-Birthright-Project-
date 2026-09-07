@@ -2,8 +2,8 @@
 """Inspect the checked-in V4 frontend archive without building or executing it.
 
 Verifies the buildgate source/archive hashes, opens the tarball in memory, and
-prints small context windows around gift, registration, login and certificate
-checkout API usage. No network requests, database access or source mutation.
+prints focused source context around login, upgrade and certificate checkout.
+No network requests, database access or source mutation.
 """
 from __future__ import annotations
 
@@ -28,8 +28,9 @@ PATTERNS = [
     re.compile(r'/certificate/checkout', re.I),
     re.compile(r'/auth/register', re.I),
     re.compile(r'/auth/login', re.I),
-    re.compile(r'(/gift\b|Gift the Moon|personalised gift|personalized gift)', re.I),
-    re.compile(r'(checkout_url|window\.location|location\.href|navigate\()', re.I),
+    re.compile(r'\bupgrade\b', re.I),
+    re.compile(r'checkout_url', re.I),
+    re.compile(r'(window\.location|location\.href|navigate\(|useNavigate|Routes|Route)', re.I),
 ]
 
 
@@ -56,17 +57,14 @@ def main() -> int:
                 continue
             text = fh.read().decode('utf-8', errors='replace')
             lines = text.splitlines()
-            hit_lines: set[int] = set()
-            for idx, line in enumerate(lines):
-                if any(p.search(line) for p in PATTERNS):
-                    hit_lines.add(idx)
+            hit_lines = [idx for idx, line in enumerate(lines) if any(p.search(line) for p in PATTERNS)]
             if not hit_lines:
                 continue
             print('FRONTEND_FILE_BEGIN', member.name)
             shown: set[int] = set()
-            for idx in sorted(hit_lines):
-                start = max(0, idx - 3)
-                end = min(len(lines), idx + 4)
+            for idx in hit_lines:
+                start = max(0, idx - 12)
+                end = min(len(lines), idx + 13)
                 if all(i in shown for i in range(start, end)):
                     continue
                 print(f'--- lines {start+1}-{end} ---')
