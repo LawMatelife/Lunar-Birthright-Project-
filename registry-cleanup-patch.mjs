@@ -6,7 +6,7 @@ const indexPath = path.join(root, 'frontend', 'build', 'index.html');
 if (!fs.existsSync(indexPath)) throw new Error('frontend/build/index.html missing');
 
 let html = fs.readFileSync(indexPath, 'utf8');
-const MARKER = 'LBP_REGISTRY_CLEANUP_V2';
+const MARKER = 'LBP_REGISTRY_CLEANUP_V3';
 
 const cleanup = String.raw`<script id="lbp-registry-cleanup">
 /* ${MARKER} */
@@ -15,6 +15,11 @@ const cleanup = String.raw`<script id="lbp-registry-cleanup">
 
 function removeLegacyProductionNotice(){
   var patterns = [
+    /founding\s+preview\s+citizens\s+are\s+shown\s+while\s+the\s+original\s+archive\s+is\s+being\s+recovered\.?/i,
+    /original\s+archive\s+(?:is\s+)?being\s+recovered/i,
+    /preview\s+citizens?.*archive.*recover/i,
+    /for\s+full\s+cross-device\s+login\s+later.*connect\s+supabase/i,
+    /connect\s+supabase\s+accounts?/i,
     /names?\s+(?:are\s+)?waiting\s+(?:to\s+come\s+)?from\s+production/i,
     /waiting\s+(?:on|for)\s+.*production/i,
     /(?:users?|citizens?|names?)\s+(?:are\s+)?(?:being\s+)?(?:migrated|transferred|moved|changed\s+over)\s+from\s+(?:the\s+)?(?:old\s+)?(?:development|production)/i,
@@ -65,11 +70,11 @@ new MutationObserver(function(){
 })();
 </script>`;
 
-/* Replace V1 if present so old build artifacts cannot keep unsafe DOM dedupe. */
+/* Replace older injected versions so stale cleanup logic cannot survive in build artifacts. */
 html = html.replace(/<script id="lbp-registry-cleanup">[\s\S]*?<\/script>/i, cleanup.match(/<script[\s\S]*<\/script>/i)?.[0] || '');
 if (!html.includes(MARKER)) {
   html = html.replace(/<\/body>/i, cleanup + '\n</body>');
 }
 fs.writeFileSync(indexPath, html);
 
-console.log('LBP_REGISTRY_CLEANUP_OK — stable-ID reconciliation only');
+console.log('LBP_REGISTRY_CLEANUP_OK — obsolete recovery notices removed; stable-ID reconciliation only');
