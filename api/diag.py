@@ -175,7 +175,7 @@ async def diagnostic() -> dict[str, Any]:
         "environment": {
             "MONGO_URL": bool((os.getenv("MONGO_URL") or "").strip()),
             "DB_NAME": bool((os.getenv("DB_NAME") or "").strip()),
-            "STRIPE_SECRET_KEY": bool((os.getenv("STRIPE_SECRET_KEY") or "").strip()),
+            "STRIPE_API_KEY": bool((os.getenv("STRIPE_API_KEY") or "").strip()),
             "STRIPE_WEBHOOK_SECRET": bool((os.getenv("STRIPE_WEBHOOK_SECRET") or "").strip()),
             "CROSSMINT_API_KEY": bool((os.getenv("CROSSMINT_API_KEY") or "").strip()),
             "mongo_related_variable_names": _mongo_related_variable_names(),
