@@ -1,6 +1,6 @@
 name: Create Isolated Lunar Vercel Preview
 
-# Fresh trigger after VERCEL_TOKEN repository secret value was updated on 2026-09-06.
+# Second isolated deploy after first-project bootstrap; this run should be Preview.
 on:
   push:
     branches: ["v4-recovery-admin-hardening"]
