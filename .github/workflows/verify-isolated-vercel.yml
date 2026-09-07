@@ -1,5 +1,6 @@
 name: Verify Isolated Lunar Vercel Separation
 
+# Post-preview verification after successful isolated Preview deployment.
 on:
   push:
     branches: ["v4-recovery-admin-hardening"]
