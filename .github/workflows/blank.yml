@@ -108,13 +108,13 @@ jobs:
           CI: "true"
         run: npm run build:ci
 
-      - name: Inspect isolated upgrade payment flow
+      - name: Inspect isolated upgrade payment flow and native admin auth
         run: |
           echo "FRONTEND_UPGRADE_CHECKOUT_REFERENCES_BEGIN"
           grep -R -n -C 12 "/certificate/checkout" frontend/src || true
           grep -R -n -C 8 "redirect=/upgrade" frontend/src || true
           echo "FRONTEND_UPGRADE_CHECKOUT_REFERENCES_END"
-          python scripts/inspect_backend_functions.py create_certificate_checkout stripe_webhook
+          python scripts/inspect_backend_functions.py create_certificate_checkout stripe_webhook login get_current_user
 
       - name: Verify production UI certificate and admin contract
         run: |
@@ -130,13 +130,17 @@ jobs:
           grep -q "Create a Personalised Gift — NZ\$12" frontend/build/index.html
           grep -q "Symbolic commemorative registry only—no legal ownership of lunar land is conveyed." frontend/build/index.html
           grep -q "LBP_REGISTRY_STATS_LIVE_V1" frontend/build/index.html
-          grep -q "LBP_ADMIN_REGISTRY_AUDIT_V1" frontend/build/index.html
-          grep -q "LBP_ADMIN_PROFILE_TOOLS_V1" frontend/build/index.html
+          grep -q "LBP_ADMIN_REGISTRY_AUDIT_V2" frontend/build/index.html
+          grep -q "LBP_SIMPLE_NATIVE_ADMIN_LOGIN_V1" frontend/build/index.html
+          grep -q "/api/auth/login" frontend/build/index.html
+          grep -q "/api/auth/me" frontend/build/index.html
+          grep -q "Download Registry Backup" frontend/build/index.html
           grep -q "/api/admin/registry-audit" frontend/build/index.html
           grep -q "/api/admin/profile-update" frontend/build/index.html
           grep -q "/api/admin/duplicate-check" frontend/build/index.html
           grep -q "/api/admin/registry-classify" frontend/build/index.html
+          ! grep -q "location.assign('/login?redirect=/admin')" frontend/build/index.html
           ! grep -Eqi 'href=["'"'"'][^"'"'"']*STRIPE_SETUP\.md' frontend/build/index.html
           ! grep -qi "NFT TOKEN \[TOKEN ID\]" frontend/build/founding-certificate.svg
           ! grep -qi "DIGITAL ARCHIVE KEY / NFT TOKEN ID" frontend/build/founding-certificate.svg
-          echo "V4 production recovery admin, profile tools and certificate contract verified"
+          echo "V4 production recovery admin, native login, profile tools and certificate contract verified"
