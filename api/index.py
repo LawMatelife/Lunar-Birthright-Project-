@@ -53,9 +53,15 @@ def _normalise_database_environment() -> None:
 
 
 def _normalise_diagnostic_environment() -> None:
-    """Keep the hardening health diagnostic aligned with the V4 Stripe key name."""
+    """Accept either supported server-side Stripe secret variable name."""
     stripe_api_key = (os.getenv("STRIPE_API_KEY") or "").strip()
-    if stripe_api_key and not (os.getenv("STRIPE_SECRET_KEY") or "").strip():
+    stripe_secret_key = (os.getenv("STRIPE_SECRET_KEY") or "").strip()
+    if not stripe_api_key and stripe_secret_key:
+        # Vercel's Stripe integration provisions STRIPE_SECRET_KEY while the
+        # recovered V4 runtime historically reads STRIPE_API_KEY.
+        os.environ["STRIPE_API_KEY"] = stripe_secret_key
+        stripe_api_key = stripe_secret_key
+    if stripe_api_key and not stripe_secret_key:
         # Compatibility alias for the read-only /api/admin/release-health check.
         # The V4 checkout itself continues to use STRIPE_API_KEY exclusively.
         os.environ["STRIPE_SECRET_KEY"] = stripe_api_key
