@@ -216,6 +216,75 @@ def install(server) -> None:
     # of this function, so patching it keeps one payment path while closing minting.
     server.process_certificate_and_nft = process_paid_certificate
 
+    async def reconcile_paid_gift(
+        session_id: str = Query(min_length=20, max_length=200),
+    ):
+        """Finish an already-bound live gift payment without creating a charge.
+
+        This recovery route accepts no recipient or certificate data. The gift
+        must already be bound in Atlas, and Stripe remains authoritative for the
+        amount, currency, payment state and Lunar product classification.
+        """
+        if not getattr(server, "STRIPE_API_KEY", ""):
+            raise HTTPException(status_code=503, detail="Stripe is not configured")
+
+        certificate = await server.db.certificates.find_one(
+            {"stripe_session_id": session_id}, {"_id": 0}
+        )
+        payment = await server.db.payment_transactions.find_one(
+            {"session_id": session_id}, {"_id": 0}
+        )
+        if not certificate or not payment or not certificate.get("user_id"):
+            raise HTTPException(status_code=404, detail="No pre-bound gift record exists for this session")
+
+        try:
+            checkout = await server.asyncio.to_thread(
+                server.stripe.checkout.Session.retrieve, session_id
+            )
+        except Exception as exc:
+            server.logger.warning("Unable to verify paid gift session %s: %s", session_id, exc)
+            raise HTTPException(status_code=502, detail="Unable to verify payment with Stripe") from exc
+
+        metadata = dict(checkout.get("metadata") or {})
+        lunar_product = (
+            metadata.get("app") == "lunar_birthright"
+            and metadata.get("purchase_type") in {
+                "personalised_gift_fallback",
+                "personalised_gift",
+                "lunar_gift_certificate",
+            }
+        )
+        if not (
+            checkout.get("payment_status") == "paid"
+            and checkout.get("status") == "complete"
+            and int(checkout.get("amount_total") or 0) == 1200
+            and str(checkout.get("currency") or "").lower() == "nzd"
+            and lunar_product
+        ):
+            raise HTTPException(status_code=409, detail="Stripe session is not a verified paid Lunar NZ$12 gift")
+
+        user_id = str(certificate["user_id"])
+        await server._mark_stripe_payment_paid(session_id, user_id)
+        await process_paid_certificate(user_id, session_id)
+        latest = await server.db.certificates.find_one(
+            {"stripe_session_id": session_id, "user_id": user_id},
+            {
+                "_id": 0,
+                "payment_status": 1,
+                "certificate_ready": 1,
+                "fulfillment_status": 1,
+                "email_delivery_status": 1,
+                "nft_status": 1,
+                "nft_minted": 1,
+                "nft_token_id": 1,
+                "nft_transaction_hash": 1,
+            },
+        ) or {}
+        if not (latest.get("nft_minted") and latest.get("nft_status") == "success"):
+            latest.pop("nft_token_id", None)
+            latest.pop("nft_transaction_hash", None)
+        return {"success": True, "session_verified": True, **latest}
+
     async def registry_stats():
         excluded_ids = await server.db.registry_exclusions.distinct(
             "target_id", {"target_type": "user", "excluded": True}
@@ -334,6 +403,12 @@ def install(server) -> None:
         }
 
     server.app.add_api_route("/api/registry-stats", registry_stats, methods=["GET"], include_in_schema=False)
+    server.app.add_api_route(
+        "/api/certificate/reconcile-paid-gift",
+        reconcile_paid_gift,
+        methods=["POST"],
+        include_in_schema=False,
+    )
     server.app.add_api_route("/api/admin/registry-audit", registry_audit, methods=["GET"], include_in_schema=False)
     server.app.add_api_route("/api/admin/registry-decision", registry_decision, methods=["POST"], include_in_schema=False)
     server.app.add_api_route("/api/admin/release-health", release_health, methods=["GET"], include_in_schema=False)
