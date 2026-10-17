@@ -1,5 +1,6 @@
 import base64
 import html
+import hashlib
 import os
 import uuid
 from datetime import datetime, timezone
@@ -115,12 +116,51 @@ def install(server) -> None:
         urls = server._build_certificate_urls(user_id, cert_number) if cert_number else {}
         now = datetime.now(timezone.utc).isoformat()
 
+        # Render and parse the PDF before advertising readiness or claiming email.
+        # A DB write alone cannot prove that a downloadable certificate exists.
+        if not cert_number:
+            raise HTTPException(status_code=409, detail="Certificate number is missing")
+        try:
+            pdf_bytes = server.generate_premium_certificate_pdf(
+                full_name=user.get("full_name", "Lunar Citizen"),
+                citizen_number=_citizen_number(cert_number),
+                certificate_number=cert_number,
+                message_to_future=user.get("message", "") or user.get("message_to_the_future", "") or "",
+                issue_date=_issue_date(certificate),
+                lunar_sector=user.get("lunar_sector") or plot.get("lunar_sector") or "Recorded lunar location",
+                birth_date=plot.get("birth_date", user.get("birth_date", "")),
+                birth_moon_phase=plot.get("birth_moon_phase", ""),
+                birth_moon_illumination=plot.get("birth_moon_illumination"),
+                birth_moon_region=plot.get("birth_moon_region", ""),
+                is_gift=bool(user.get("is_gift")),
+                gift_occasion=user.get("gift_occasion", "") or "",
+            )
+            from io import BytesIO
+            from pypdf import PdfReader
+
+            if not isinstance(pdf_bytes, bytes) or not pdf_bytes.startswith(b"%PDF-"):
+                raise ValueError("Certificate generator did not return PDF bytes")
+            pdf = PdfReader(BytesIO(pdf_bytes), strict=True)
+            if pdf.is_encrypted or not pdf.pages:
+                raise ValueError("Certificate PDF is empty or encrypted")
+            for page in pdf.pages:
+                page.get_contents()
+        except Exception:
+            await server.db.certificates.update_one(
+                cert_filter,
+                {"$set": {"certificate_ready": False, "certificate_status": "failed",
+                          "fulfillment_status": "failed", "fulfillment_error": "pdf_validation_failed"}},
+            )
+            raise HTTPException(status_code=502, detail="Certificate PDF could not be rendered and validated")
+
         # Certificate delivery is independent of the blockchain layer. No token
         # placeholder or invented token value is written while the mint gate is closed.
         await server.db.certificates.update_one(
             cert_filter,
             {"$set": {
                 "certificate_ready": True,
+                "certificate_status": "ready",
+                "certificate_pdf_sha256": hashlib.sha256(pdf_bytes).hexdigest(),
                 "fulfillment_status": "certificate_ready",
                 "fulfillment_updated_at": now,
                 "nft_minted": False,
@@ -142,20 +182,6 @@ def install(server) -> None:
         )
         if email_claim.modified_count:
             try:
-                pdf_bytes = server.generate_premium_certificate_pdf(
-                    full_name=user.get("full_name", "Lunar Citizen"),
-                    citizen_number=_citizen_number(cert_number),
-                    certificate_number=cert_number,
-                    message_to_future=user.get("message", "") or user.get("message_to_the_future", "") or "",
-                    issue_date=_issue_date(certificate),
-                    lunar_sector=user.get("lunar_sector") or plot.get("lunar_sector") or "Recorded lunar location",
-                    birth_date=plot.get("birth_date", user.get("birth_date", "")),
-                    birth_moon_phase=plot.get("birth_moon_phase", ""),
-                    birth_moon_illumination=plot.get("birth_moon_illumination"),
-                    birth_moon_region=plot.get("birth_moon_region", ""),
-                    is_gift=bool(user.get("is_gift")),
-                    gift_occasion=user.get("gift_occasion", "") or "",
-                )
                 verification_url = urls.get("verification_url") or f"{server.FRONTEND_URL}/verify/{cert_number}"
                 email_result = await server.send_email_async(
                     to_email=user.get("email"),
@@ -172,8 +198,9 @@ def install(server) -> None:
                     "email_delivery_updated_at": datetime.now(timezone.utc).isoformat(),
                 }
                 if email_status == "success":
-                    email_update["email_delivered_at"] = datetime.now(timezone.utc).isoformat()
+                    email_update["email_accepted_at"] = datetime.now(timezone.utc).isoformat()
                     email_update["email_message_id"] = (email_result or {}).get("email_id")
+                    email_update["email_provider_status"] = "accepted"
                 else:
                     email_update["email_delivery_error"] = str((email_result or {}).get("error") or (email_result or {}).get("reason") or "delivery_not_completed")[:500]
                 await server.db.certificates.update_one(cert_filter, {"$set": email_update})
@@ -227,6 +254,8 @@ def install(server) -> None:
         amount, currency, payment state and Lunar product classification.
         """
         _admin_or_403(current_user)
+        if _mint_gate_open():
+            raise HTTPException(status_code=409, detail="Paid gift recovery requires minting to remain disabled")
         if not getattr(server, "STRIPE_API_KEY", ""):
             raise HTTPException(status_code=503, detail="Stripe is not configured")
 
@@ -266,6 +295,18 @@ def install(server) -> None:
             raise HTTPException(status_code=409, detail="Stripe session is not a verified paid Lunar NZ$12 gift")
 
         user_id = str(certificate["user_id"])
+        user = await server.db.users.find_one({"id": user_id}, {"_id": 0})
+        purchaser_email = str((checkout.get("customer_details") or {}).get("email") or checkout.get("customer_email") or "").strip().casefold()
+        bound_intent = certificate.get("stripe_payment_intent_id")
+        if not (
+            user and payment.get("user_id") == user_id
+            and bound_intent and bound_intent == checkout.get("payment_intent")
+            and payment.get("payment_intent_id") == bound_intent
+            and purchaser_email
+            and str(payment.get("email") or "").strip().casefold() == purchaser_email
+            and str(user.get("email") or "").strip().casefold() == purchaser_email
+        ):
+            raise HTTPException(status_code=409, detail="Paid gift recipient or payment binding does not match")
         await server._mark_stripe_payment_paid(session_id, user_id)
         await process_paid_certificate(user_id, session_id)
         latest = await server.db.certificates.find_one(
@@ -414,3 +455,4 @@ def install(server) -> None:
     server.app.add_api_route("/api/admin/registry-audit", registry_audit, methods=["GET"], include_in_schema=False)
     server.app.add_api_route("/api/admin/registry-decision", registry_decision, methods=["POST"], include_in_schema=False)
     server.app.add_api_route("/api/admin/release-health", release_health, methods=["GET"], include_in_schema=False)
+
