@@ -218,6 +218,7 @@ def install(server) -> None:
 
     async def reconcile_paid_gift(
         session_id: str = Query(min_length=20, max_length=200),
+        current_user: dict = Depends(server.get_current_user),
     ):
         """Finish an already-bound live gift payment without creating a charge.
 
@@ -225,6 +226,7 @@ def install(server) -> None:
         must already be bound in Atlas, and Stripe remains authoritative for the
         amount, currency, payment state and Lunar product classification.
         """
+        _admin_or_403(current_user)
         if not getattr(server, "STRIPE_API_KEY", ""):
             raise HTTPException(status_code=503, detail="Stripe is not configured")
 
