@@ -1,0 +1,152 @@
+/* LUNA BIRTHRIGHT PROJECT - Premium Styles */
+
+.luna-landing {
+  background: #000000;
+  min-height: 100vh;
+  color: #ffffff;
+}
+
+/* Cinematic gradient text */
+.gradient-text-luna {
+  background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 50%, #f472b6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradient-shift 3s ease infinite;
+}
+
+@keyframes gradient-shift {
+  0%, 100% { filter: hue-rotate(0deg); }
+  50% { filter: hue-rotate(15deg); }
+}
+
+/* Glowing button effect */
+.glow-button {
+  box-shadow: 0 0 20px rgba(96, 165, 250, 0.5), 
+              0 0 40px rgba(167, 139, 250, 0.3);
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(96, 165, 250, 0.5), 
+                0 0 40px rgba(167, 139, 250, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(96, 165, 250, 0.7), 
+                0 0 60px rgba(167, 139, 250, 0.5);
+  }
+}
+
+/* Enhanced stars background */
+.stars-bg {
+  background-image: 
+    radial-gradient(2px 2px at 20% 30%, white, rgba(0,0,0,0)),
+    radial-gradient(2px 2px at 60% 70%, white, rgba(0,0,0,0)),
+    radial-gradient(1px 1px at 50% 50%, white, rgba(0,0,0,0)),
+    radial-gradient(1px 1px at 130px 80px, white, rgba(0,0,0,0)),
+    radial-gradient(2px 2px at 90px 10px, white, rgba(0,0,0,0)),
+    radial-gradient(1px 1px at 40% 20%, #60a5fa, rgba(0,0,0,0)),
+    radial-gradient(1px 1px at 80% 90%, #a78bfa, rgba(0,0,0,0));
+  background-repeat: repeat;
+  background-size: 300px 300px;
+  animation: twinkle 5s ease-in-out infinite;
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Fade-in animation */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 1s ease-out;
+}
+
+/* Counter cards */
+.counter-card {
+  animation: float 3s ease-in-out infinite;
+}
+
+.counter-card:nth-child(2) {
+  animation-delay: 0.5s;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Counter number animation */
+.counter-number {
+  font-variant-numeric: tabular-nums;
+  transition: all 0.5s ease;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Section spacing */
+section {
+  position: relative;
+}
+
+/* Premium spacing */
+.container {
+  max-width: 1280px;
+}
+
+/* Mobile responsive text */
+@media (max-width: 768px) {
+  .text-8xl {
+    font-size: 3rem;
+  }
+  .text-6xl {
+    font-size: 2.5rem;
+  }
+  .text-5xl {
+    font-size: 2rem;
+  }
+}
+
+/* Hero section specific */
+.hero-section {
+  background: radial-gradient(circle at center, #0a0a1a 0%, #000000 100%);
+}
+
+/* Details/Summary styling */
+details summary {
+  transition: all 0.3s ease;
+}
+
+details[open] summary {
+  color: #60a5fa;
+}
+
+details[open] summary + p {
+  animation: fade-in 0.5s ease-out;
+}
+
+/* Backdrop blur support */
+@supports (backdrop-filter: blur(10px)) {
+  .backdrop-blur-sm {
+    backdrop-filter: blur(10px);
+  }
+}
